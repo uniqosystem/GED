@@ -1,0 +1,128 @@
+{% extends 'core/inicio.html' %}
+
+{% block conteudo %}
+<div class="container-fluid mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="bi bi-shield-check text-primary me-2"></i>Logs de Auditoria do Sistema</h2>
+        <a href="{% url 'exportar_auditoria' %}?busca={{ filtro_busca }}&acao={{ filtro_acao }}&data_inicio={{ data_inicio }}&data_fim={{ data_fim }}" class="btn btn-outline-success">
+            <i class="bi bi-file-earmark-excel me-1"></i> Exportar para Excel
+        </a>
+        <div>
+            <span class="badge bg-primary fs-6">Usuário: {{ request.user.get_full_name|default:request.user.username }}</span>
+            <span class="badge bg-secondary fs-6 me-2">Setor: {{ setor_usuario.nome|default:"Sem Setor" }}</span>
+        </div>
+    </div>
+
+    <!-- Barra de Filtros Avançada -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <form method="GET" action="{% url 'ver_auditoria' %}" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label fw-bold">Buscar por Usuário ou Item</label>
+                    <input type="text" name="busca" class="form-control" placeholder="Ex: admin ou Protocolo" value="{{ filtro_busca }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-bold">Filtrar por Ação</label>
+                    <select name="acao" class="form-select">
+                        <option value="">Todas as Ações</option>
+                        <optgroup label="Arquivos e Pastas">
+                            <option value="UPLOAD" {% if filtro_acao == 'UPLOAD' %}selected{% endif %}>Upload de Arquivo</option>
+                            <option value="CRIAR_PASTA" {% if filtro_acao == 'CRIAR_PASTA' %}selected{% endif %}>Criação de Subpasta</option>
+                            <option value="RENOMEAR" {% if filtro_acao == 'RENOMEAR' %}selected{% endif %}>Renomear Item</option>
+                            <option value="APAGAR" {% if filtro_acao == 'APAGAR' %}selected{% endif %}>Mover para Lixeira</option>
+                        </optgroup>
+                        <optgroup label="Tramitações">
+                            <option value="CRIAR_TRAMITACAO" {% if filtro_acao == 'CRIAR_TRAMITACAO' %}selected{% endif %}>Nova Tramitação</option>
+                            <option value="EDITAR_TRAMITACAO" {% if filtro_acao == 'EDITAR_TRAMITACAO' %}selected{% endif %}>Edição</option>
+                            <option value="RECEBER_TRAMITACAO" {% if filtro_acao == 'RECEBER_TRAMITACAO' %}selected{% endif %}>Recebimento</option>
+                            <option value="DEVOLVER_TRAMITACAO" {% if filtro_acao == 'DEVOLVER_TRAMITACAO' %}selected{% endif %}>Devolução</option>
+                            <option value="RESPONDER_TRAMITACAO" {% if filtro_acao == 'RESPONDER_TRAMITACAO' %}selected{% endif %}>Resposta</option>
+                            <option value="CONCLUIR_TRAMITACAO" {% if filtro_acao == 'CONCLUIR_TRAMITACAO' %}selected{% endif %}>Conclusão</option>
+                            <option value="ARQUIVAR_TRAMITACAO" {% if filtro_acao == 'ARQUIVAR_TRAMITACAO' %}selected{% endif %}>Arquivamento</option>
+                            <option value="EXCLUIR_TRAMITACAO" {% if filtro_acao == 'EXCLUIR_TRAMITACAO' %}selected{% endif %}>Exclusão</option>
+                        </optgroup>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label fw-bold">Data Inicial</label>
+                    <input type="date" name="data_inicio" class="form-control" value="{{ data_inicio }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label fw-bold">Data Final</label>
+                    <input type="date" name="data_fim" class="form-control" value="{{ data_fim }}">
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100 fw-bold">
+                        <i class="bi bi-search me-1"></i> Filtrar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Tabela de Registros -->
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover table-striped mb-0 align-middle">
+                    <thead class="table-dark">
+                        <tr>
+                            <th style="width: 15%;">Data / Hora</th>
+                            <th style="width: 15%;">Usuário</th>
+                            <th style="width: 18%;">Ação</th>
+                            <th style="width: 22%;">Descrição do Evento</th>
+                            <th style="width: 30%;">Detalhes / Caminho</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in logs %}
+                        <tr>
+                            <td class="text-muted fw-bold">{{ log.data_hora|date:"d/m/Y H:i" }}</td>
+                            <td><span class="badge bg-dark px-2 py-1"><i class="bi bi-person me-1"></i>{{ log.usuario.username|default:"Sistema" }}</span></td>
+                            <td>
+                                {% if log.acao == 'APAGAR' or log.acao == 'EXCLUIR_TRAMITACAO' %}
+                                    <span class="badge bg-danger px-2 py-1 fw-bold"><i class="bi bi-trash me-1"></i>{{ log.get_acao_display }}</span>
+                                {% elif log.acao == 'UPLOAD' or log.acao == 'CRIAR_TRAMITACAO' %}
+                                    <span class="badge bg-success px-2 py-1 fw-bold"><i class="bi bi-plus-circle me-1"></i>{{ log.get_acao_display }}</span>
+                                {% elif log.acao == 'RECEBER_TRAMITACAO' or log.acao == 'CONCLUIR_TRAMITACAO' %}
+                                    <span class="badge bg-primary px-2 py-1 fw-bold"><i class="bi bi-check2-all me-1"></i>{{ log.get_acao_display }}</span>
+                                {% elif log.acao == 'DEVOLVER_TRAMITACAO' %}
+                                    <span class="badge bg-warning text-dark px-2 py-1 fw-bold"><i class="bi bi-arrow-return-left me-1"></i>{{ log.get_acao_display }}</span>
+                                {% elif log.acao == 'RESPONDER_TRAMITACAO' %}
+                                    <span class="badge bg-secondary px-2 py-1 fw-bold"><i class="bi bi-reply-fill me-1"></i>{{ log.get_acao_display }}</span>    
+                                {% else %}
+                                    <span class="badge bg-info text-dark px-2 py-1 fw-bold">{{ log.get_acao_display }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="fw-bold text-secondary">{{ log.descricao }}</td>
+                            <td><small class="text-wrap text-break font-monospace text-muted">{{ log.caminho_item|default:"-" }}</small></td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center py-4 text-muted">
+                                <i class="bi bi-info-circle me-1"></i> Nenhum registro de auditoria encontrado para os filtros aplicados.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Paginação -->
+    {% if logs.has_other_pages %}
+    <nav class="mt-3">
+        <ul class="pagination justify-content-center">
+            {% if logs.has_previous %}
+                <li class="page-item"><a class="page-link" href="?page={{ logs.previous_page_number }}&busca={{ filtro_busca }}&acao={{ filtro_acao }}&data_inicio={{ data_inicio }}&data_fim={{ data_fim }}">Anterior</a></li>
+            {% endif %}
+            <li class="page-item active"><span class="page-link">{{ logs.number }} de {{ logs.paginator.num_pages }}</span></li>
+            {% if logs.has_next %}
+                <li class="page-item"><a class="page-link" href="?page={{ logs.next_page_number }}&busca={{ filtro_busca }}&acao={{ filtro_acao }}&data_inicio={{ data_inicio }}&data_fim={{ data_fim }}">Próximo</a></li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+{% endblock conteudo %}

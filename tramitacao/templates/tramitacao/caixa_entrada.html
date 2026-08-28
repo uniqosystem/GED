@@ -1,0 +1,1314 @@
+{% extends 'core/base.html' %}
+{% block conteudo %}
+    <div class="container-fluid mt-4">
+        <!-- Cabeçalho -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>Caixa de Entrada</h2>
+            <div>
+                <span class="badge bg-primary fs-6">Usuário: {{ request.user.get_full_name|default:request.user.username }}</span>
+                <span class="badge bg-secondary fs-6 me-2">Setor: {{ setor_usuario.nome|default:"Sem Setor" }}</span>
+            </div>
+        </div>
+
+        <!-- Botão Nova Tramitação (Verde com espaçamento embaixo) -->
+        <div class="mb-4">
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNovaTramitacao">
+                <i class="bi bi-plus-lg"></i> Nova Tramitação
+            </button>
+        </div>
+
+        <!-- Mensagens de Alerta -->
+        {% if messages %}
+            {% for message in messages %}
+                {% if 'acao-bloqueada' in message.tags %}
+                    <div class="modal fade" id="modalAcaoBloqueada" tabindex="-1" aria-labelledby="modalAcaoBloqueadaLabel" aria-hidden="true">
+                        <div class="modal-dialog modal-dialog-centered">
+                            <div class="modal-content border-danger">
+                                <div class="modal-header bg-danger text-white">
+                                    <h5 class="modal-title" id="modalAcaoBloqueadaLabel">
+                                        <i class="bi bi-shield-exclamation me-2" aria-hidden="true"></i>Ação Bloqueada
+                                    </h5>
+                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <p class="mb-0">{{ message }}</p>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-danger" data-bs-dismiss="modal">Entendi</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% else %}
+                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endif %}
+            {% endfor %}
+        {% endif %}
+
+        <!-- Navegação por Abas -->
+        <ul class="nav nav-tabs" id="tramitacaoTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="recebidos-tab" data-bs-toggle="tab" data-bs-target="#recebidos" type="button" role="tab">
+                    Recebidos <span class="badge bg-primary">{{ recebidos.count }}</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="enviados-tab" data-bs-toggle="tab" data-bs-target="#enviados" type="button" role="tab">
+                    Enviados <span class="badge bg-secondary">{{ enviados.count }}</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="arquivados-tab" data-bs-toggle="tab" data-bs-target="#arquivados" type="button" role="tab">
+                    Arquivados <span class="badge bg-warning text-dark">{{ arquivados.count }}</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="concluidos-tab" data-bs-toggle="tab" data-bs-target="#concluidos" type="button" role="tab">
+                    Concluidos <span class="badge bg-success text-dark">{{ concluidos.count }}</span>
+                </button>
+            </li>
+        </ul>
+
+        <!-- Formulário principal apenas para as abas que possuem ações em lote (Recebidos, Enviados, Arquivados) -->
+        <form method="POST" id="formAcoesLote">
+            {% csrf_token %}
+            <input type="hidden" name="acao" id="inputAcao" value="">
+            
+            <!-- Barra de Ações Rápidas -->
+            <div class="card bg-light mt-3 mb-3 p-2 border-0 shadow-sm barra-acoes-lote">
+                <div class="d-flex align-items-center flex-wrap gap-2">
+                    <button type="button" id="btnSelecionarTodos" class="btn btn-sm btn-outline-secondary">
+                        <i class="bi bi-check-square"></i> Selecionar Todos
+                    </button>
+                    <button type="button" id="btnMarcarLido" class="btn btn-sm btn-info text-white">
+                        <i class="bi bi-check2-all"></i> Receber
+                    </button>
+                    <button type="button" id="btnArquivar" class="btn btn-sm btn-secondary">
+                        <i class="bi bi-archive"></i> Arquivar
+                    </button>
+                    <button type="submit" name="acao" value="concluir" class="btn btn-success btn-sm">
+                        <i class="bi bi-check-circle"></i> Concluir
+                    </button>
+                </div>
+            </div>
+
+            <div class="tab-content" id="tramitacaoTabsContent">
+                
+                {% include 'tramitacao/includes/aba_recebidos.html' %}
+                {% include 'tramitacao/includes/aba_enviados.html' %}
+                {% include 'tramitacao/includes/aba_arquivados.html' %}
+                <!-- Abas de listagem extraidas para includes modulares. -->
+                {% comment %}
+                <!-- ABA: RECEBIDOS -->
+                <div class="tab-pane fade show active" id="recebidos" role="tabpanel">
+                    <div hx-get="{% url 'caixa_entrada' %}" hx-trigger="every 30s" hx-select="#aba-recebidos" hx-swap="outerHTML">
+                        <div id="aba-recebidos" class="table-responsive bg-white p-3 shadow-sm rounded">
+                            <table class="table table-hover align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width: 40px;">#</th>
+                                        <th>Protocolo</th>
+                                        <th>Data/Hora</th>
+                                        <th>Origem</th>
+                                        <th>Tipo / Título</th>
+                                        <th>Status</th>
+                                        <th class="text-center">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for t in recebidos %}
+                                    <tr>
+                                        <td><input type="checkbox" name="tramitacoes_ids" value="{{ t.id }}" class="select-item form-check-input"></td>
+                                        <td><strong>{{ t.protocolo }}</strong></td>
+                                        <td>{{ t.data_envio|date:"d/m/Y H:i" }}</td>
+                                        <td>{{ t.setor_origem }}</td>
+                                        <td>
+                                            <span class="text-muted d-block small">{{ t.tipo_documento }}</span>
+                                            <a href="#" data-bs-toggle="modal" data-bs-target="#modalDetalhesTramitacao" 
+                                            data-id="{{ t.id }}" data-protocolo="{{ t.protocolo }}" data-tipodoc="{{ t.tipo_documento }}"
+                                            data-remetente="{{ t.remetente.get_full_name|default:t.remetente.username }}" 
+                                            data-setororigem="{{ t.setor_origem }}" data-dataenvio="{{ t.data_envio|date:'d/m/Y H:i' }}"
+                                            data-despacho="{{ t.despacho }}" data-observacao="{{ t.observacao }}" data-status="{{ t.status }}"
+                                            data-aguardar="{{ t.aguardar_resposta }}" class="fw-bold text-decoration-none"
+                                            data-exige-assinatura="{{ t.exige_assinatura }}"
+                                            data-assinado="{{ t.assinado }}"
+                                            class="fw-bold text-decoration-none">
+                                                {{ t.titulo }}
+                                            </a>
+
+                                            <!-- SELO VISUAL DE ASSINATURA -->
+                                            <div class="mt-1">
+                                                {% if t.exige_assinatura %}
+                                                    {% if t.assinado %}
+                                                        <span class="badge bg-success" title="Documento Assinado Eletronicamente"><i class="bi bi-patch-check-fill"></i> Assinado</span>
+                                                    {% else %}
+                                                        <span class="badge bg-warning text-dark" title="Este documento exige sua assinatura eletrônica para conclusão"><i class="bi bi-pen-fill"></i> Exige Assinatura</span>
+                                                    {% endif %}
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                        <td>
+                                            {% if t.status == 'PENDENTE' %}
+                                                <span class="badge bg-warning text-dark">Pendente</span>
+                                            {% elif t.status == 'RECEBIDO' %}
+                                                <span class="badge bg-success">Recebido</span>
+                                            {% elif t.status == 'DEVOLVIDO' %}
+                                                <span class="badge bg-danger">Devolvido</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">{{ t.status }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center">
+                                            <button type="button" 
+                                                    class="btn btn-sm btn-outline-primary" 
+                                                    data-bs-toggle="modal" 
+                                                    data-bs-target="#modalDetalhesTramitacao"
+                                                    data-id="{{ t.id }}" 
+                                                    data-protocolo="{{ t.protocolo }}"
+                                                    data-tipodoc="{{ t.tipo_documento }}"
+                                                    data-remetente="{% if t.remetente %}{{ t.remetente.get_full_name|default:t.remetente.username }}{% else %}-{% endif %}"
+                                                    data-setororigem="{{ t.setor_origem }}"
+                                                    data-dataenvio="{{ t.data_envio|date:'d/m/Y H:i' }}"
+                                                    data-despacho="{{ t.despacho }}"
+                                                    data-observacao="{{ t.observacao }}"
+                                                    data-status="{{ t.status }}"
+                                                    data-exige-assinatura="{{ t.exige_assinatura }}"
+                                                    data-assinado="{{ t.assinado }}"
+                                                    data-assinadopor="{% if t.assinado_por %}{{ t.assinado_por.get_full_name|default:t.assinado_por.username }}{% else %}{% endif %}"
+                                                    data-dataassinatura="{{ t.data_assinatura|date:'d/m/Y H:i' }}"
+                                                    data-aguardar="{{ t.aguardar_resposta }}">
+                                                <i class="bi bi-eye"></i> Visualizar
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="7" class="text-center text-muted py-4">Nenhum documento recebido no momento.</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    {% load pagination_tags %}
+                    <!-- Paginação de Recebidos -->
+                    {% with page_obj=recebidos param_name='page_rec' %}
+                    {% if page_obj.has_other_pages %}
+                    <nav class="mt-4" aria-label="Navegação de páginas">
+                        <ul class="pagination justify-content-center align-items-center shadow-sm p-2 bg-white rounded">
+                            
+                            <!-- Botão -10 páginas -->
+                            {% if page_obj.number > 10 %}
+                                <li class="page-item">
+                                    <a class="page-link text-secondary" href="?{{ param_name }}={{ page_obj.number|add:-10 }}" title="Voltar 10 páginas">
+                                        <i class="bi bi-chevron-double-left"></i> -10
+                                    </a>
+                                </li>
+                            {% endif %}
+
+                            <!-- Botão Anterior (-1) -->
+                            {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?{{ param_name }}={{ page_obj.previous_page_number }}" title="Anterior">
+                                        <i class="bi bi-chevron-left"></i>
+                                    </a>
+                                </li>
+                            {% else %}
+                                <li class="page-item disabled">
+                                    <span class="page-link"><i class="bi bi-chevron-left"></i></span>
+                                </li>
+                            {% endif %}
+
+                            <!-- Números de páginas com reticências -->
+                            {% for p in page_obj|get_pagination_range %}
+                                {% if p == '...' %}
+                                    <li class="page-item disabled"><span class="page-link">…</span></li>
+                                {% elif p == page_obj.number %}
+                                    <li class="page-item active"><span class="page-link fw-bold">{{ p }}</span></li>
+                                {% else %}
+                                    <li class="page-item"><a class="page-link" href="?{{ param_name }}={{ p }}">{{ p }}</a></li>
+                                {% endif %}
+                            {% endfor %}
+
+                            <!-- Botão Próximo (+1) -->
+                            {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?{{ param_name }}={{ page_obj.next_page_number }}" title="Próximo">
+                                        <i class="bi bi-chevron-right"></i>
+                                    </a>
+                                </li>
+                            {% else %}
+                                <li class="page-item disabled">
+                                    <span class="page-link"><i class="bi bi-chevron-right"></i></span>
+                                </li>
+                            {% endif %}
+
+                            <!-- Botão +10 páginas -->
+                            {% with max_page=page_obj.paginator.num_pages %}
+                                {% if page_obj.number|add:10 <= max_page %}
+                                    <li class="page-item">
+                                        <a class="page-link text-secondary" href="?{{ param_name }}={{ page_obj.number|add:10 }}" title="Avançar 10 páginas">
+                                            +10 <i class="bi bi-chevron-double-right"></i>
+                                        </a>
+                                    </li>
+                                {% endif %}
+                            {% endwith %}
+
+                        </ul>
+                    </nav>
+                    {% endif %}
+                    {% endwith %}
+                </div>
+
+                <!-- ABA: ENVIADOS -->
+                <div class="tab-pane fade" id="enviados" role="tabpanel">
+                    <div>
+                        <div class="table-responsive bg-white p-3 shadow-sm rounded">
+                            <table id="aba-enviados" class="table table-hover align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width: 40px;">#</th>
+                                        <th>Protocolo</th>
+                                        <th>Data/Hora</th>
+                                        <th>Destino</th>
+                                        <th>Tipo / Título</th>
+                                        <th>Status</th>
+                                        <th class="text-center">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for t in enviados %}
+                                    <tr>
+                                        <td><input type="checkbox" name="tramitacoes_ids" value="{{ t.id }}" class="select-item form-check-input"></td>
+                                        <td><strong>{{ t.protocolo }}</strong></td>
+                                        <td>{{ t.data_envio|date:"d/m/Y H:i" }}</td>
+                                        <td>{{ t.setor_destino }}</td>
+                                        <td>
+                                            <span class="text-muted d-block small">{{ t.tipo_documento }}</span>
+                                            <a href="#" data-bs-toggle="modal" data-bs-target="#modalDetalhesTramitacao" 
+                                            data-id="{{ t.id }}" data-protocolo="{{ t.protocolo }}" data-tipodoc="{{ t.tipo_documento }}"
+                                            data-remetente="{{ t.remetente.get_full_name|default:t.remetente.username }}" 
+                                            data-setororigem="{{ t.setor_origem }}" data-dataenvio="{{ t.data_envio|date:'d/m/Y H:i' }}"
+                                            data-despacho="{{ t.despacho }}" data-observacao="{{ t.observacao }}" data-status="{{ t.status }}"
+                                            data-aguardar="{{ t.aguardar_resposta }}" data-origem-propria="true" class="fw-bold text-decoration-none"
+                                            data-exige-assinatura="{{ t.exige_assinatura }}"
+                                            data-assinado="{{ t.assinado }}"
+                                            class="fw-bold text-decoration-none">
+                                                {{ t.titulo }}
+                                            </a>
+
+                                            <!-- BADGE VISÍVEL TAMBÉM PARA QUEM ENVIOU -->
+                                            <div class="mt-1">
+                                                {% if t.exige_assinatura %}
+                                                    {% if t.assinado %}
+                                                        <span class="badge bg-success" title="Documento Assinado pelo Destinatário"><i class="bi bi-patch-check-fill"></i> Assinado</span>
+                                                    {% else %}
+                                                        <span class="badge bg-warning text-dark" title="Aguardando assinatura do destinatário"><i class="bi bi-hourglass-split"></i> Aguardando Assinatura</span>
+                                                    {% endif %}
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                        <td><span class="badge bg-info text-dark">{{ t.status }}</span></td>
+                                        <td class="text-center">
+                                            <button type="button" 
+                                                    class="btn btn-sm btn-outline-primary" 
+                                                    data-bs-toggle="modal" 
+                                                    data-bs-target="#modalDetalhesTramitacao"
+                                                    data-id="{{ t.id }}" 
+                                                    data-protocolo="{{ t.protocolo }}"
+                                                    data-tipodoc="{{ t.tipo_documento }}"
+                                                    data-remetente="{% if t.remetente %}{{ t.remetente.get_full_name|default:t.remetente.username }}{% else %}-{% endif %}"
+                                                    data-setororigem="{{ t.setor_origem }}"
+                                                    data-dataenvio="{{ t.data_envio|date:'d/m/Y H:i' }}"
+                                                    data-despacho="{{ t.despacho }}"
+                                                    data-observacao="{{ t.observacao }}"
+                                                    data-status="{{ t.status }}"
+                                                    data-aguardar="{{ t.aguardar_resposta }}"
+                                                    data-exige-assinatura="{{ t.exige_assinatura }}"
+                                                    data-assinado="{{ t.assinado }}"
+                                                    data-assinadopor="{% if t.assinado_por %}{{ t.assinado_por.get_full_name|default:t.assinado_por.username }}{% else %}{% endif %}"
+                                                    data-dataassinatura="{{ t.data_assinatura|date:'d/m/Y H:i' }}"
+                                                    data-origem-propria="true">
+                                                <i class="bi bi-eye"></i> Visualizar
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="7" class="text-center text-muted py-4">Nenhum documento enviado.</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>  
+
+                    {% load pagination_tags %}
+                    <!-- Paginação de ENVIADOS -->
+                    {% with page_obj=enviados param_name='page_env' %}
+                    {% if page_obj.has_other_pages %}
+                    <nav class="mt-4" aria-label="Navegação de páginas">
+                        <ul class="pagination justify-content-center align-items-center shadow-sm p-2 bg-white rounded">
+                            
+                            <!-- Botão -10 páginas -->
+                            {% if page_obj.number > 10 %}
+                                <li class="page-item">
+                                    <a class="page-link text-secondary" href="?{{ param_name }}={{ page_obj.number|add:-10 }}" title="Voltar 10 páginas">
+                                        <i class="bi bi-chevron-double-left"></i> -10
+                                    </a>
+                                </li>
+                            {% endif %}
+
+                            <!-- Botão Anterior (-1) -->
+                            {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?{{ param_name }}={{ page_obj.previous_page_number }}" title="Anterior">
+                                        <i class="bi bi-chevron-left"></i>
+                                    </a>
+                                </li>
+                            {% else %}
+                                <li class="page-item disabled">
+                                    <span class="page-link"><i class="bi bi-chevron-left"></i></span>
+                                </li>
+                            {% endif %}
+
+                            <!-- Números de páginas com reticências -->
+                            {% for p in page_obj|get_pagination_range %}
+                                {% if p == '...' %}
+                                    <li class="page-item disabled"><span class="page-link">…</span></li>
+                                {% elif p == page_obj.number %}
+                                    <li class="page-item active"><span class="page-link fw-bold">{{ p }}</span></li>
+                                {% else %}
+                                    <li class="page-item"><a class="page-link" href="?{{ param_name }}={{ p }}">{{ p }}</a></li>
+                                {% endif %}
+                            {% endfor %}
+
+                            <!-- Botão Próximo (+1) -->
+                            {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?{{ param_name }}={{ page_obj.next_page_number }}" title="Próximo">
+                                        <i class="bi bi-chevron-right"></i>
+                                    </a>
+                                </li>
+                            {% else %}
+                                <li class="page-item disabled">
+                                    <span class="page-link"><i class="bi bi-chevron-right"></i></span>
+                                </li>
+                            {% endif %}
+
+                            <!-- Botão +10 páginas -->
+                            {% with max_page=page_obj.paginator.num_pages %}
+                                {% if page_obj.number|add:10 <= max_page %}
+                                    <li class="page-item">
+                                        <a class="page-link text-secondary" href="?{{ param_name }}={{ page_obj.number|add:10 }}" title="Avançar 10 páginas">
+                                            +10 <i class="bi bi-chevron-double-right"></i>
+                                        </a>
+                                    </li>
+                                {% endif %}
+                            {% endwith %}
+
+                        </ul>
+                    </nav>
+                    {% endif %}
+                    {% endwith %}
+                </div>
+
+                <!-- ABA: ARQUIVADOS -->
+                <div class="tab-pane fade" id="arquivados" role="tabpanel">
+                    <div>
+                        <div class="table-responsive bg-white p-3 shadow-sm rounded">
+                            <table id="aba-arquivados" class="table table-hover align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width: 40px;">#</th>
+                                        <th>Protocolo</th>
+                                        <th>Data/Hora</th>
+                                        <th>Origem / Destino</th>
+                                        <th>Tipo / Título</th>
+                                        <th class="text-center">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for t in arquivados %}
+                                    <tr>
+                                        <td><input type="checkbox" name="tramitacoes_ids" value="{{ t.id }}" class="select-item form-check-input"></td>
+                                        <td><strong>{{ t.protocolo }}</strong></td>
+                                        <td>{{ t.data_envio|date:"d/m/Y H:i" }}</td>
+                                        <td>{{ t.setor_origem }} → {{ t.setor_destino }}</td>
+                                        <td>
+                                            <span class="text-muted d-block small">{{ t.tipo_documento }}</span>
+                                            <a href="#" data-bs-toggle="modal" data-bs-target="#modalDetalhesTramitacao" 
+                                            data-id="{{ t.id }}" data-protocolo="{{ t.protocolo }}" data-tipodoc="{{ t.tipo_documento }}"
+                                            data-remetente="{{ t.remetente.get_full_name|default:t.remetente.username }}" 
+                                            data-setororigem="{{ t.setor_origem }}" data-dataenvio="{{ t.data_envio|date:'d/m/Y H:i' }}"
+                                            data-despacho="{{ t.despacho }}" data-observacao="{{ t.observacao }}" data-status="{{ t.status }}"
+                                            data-aguardar="{{ t.aguardar_resposta }}" class="fw-bold text-decoration-none"
+                                            data-exige-assinatura="{{ t.exige_assinatura }}"
+                                            data-assinado="{{ t.assinado }}"
+                                            class="fw-bold text-decoration-none">
+                                                {{ t.titulo }}
+                                            </a>
+
+                                            <!-- SELO VISUAL DE ASSINATURA -->
+                                            <div class="mt-1">
+                                                {% if t.exige_assinatura %}
+                                                    {% if t.assinado %}
+                                                        <span class="badge bg-success" title="Documento Assinado Eletronicamente"><i class="bi bi-patch-check-fill"></i> Assinado</span>
+                                                    {% else %}
+                                                        <span class="badge bg-warning text-dark" title="Este documento exige sua assinatura eletrônica para conclusão"><i class="bi bi-pen-fill"></i> Exige Assinatura</span>
+                                                    {% endif %}
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                        <td class="text-center">
+                                            <button type="button" 
+                                                    class="btn btn-sm btn-outline-primary" 
+                                                    data-bs-toggle="modal" 
+                                                    data-bs-target="#modalDetalhesTramitacao"
+                                                    data-id="{{ t.id }}" 
+                                                    data-protocolo="{{ t.protocolo }}"
+                                                    data-tipodoc="{{ t.tipo_documento }}"
+                                                    data-remetente="{% if t.remetente %}{{ t.remetente.get_full_name|default:t.remetente.username }}{% else %}-{% endif %}"
+                                                    data-setororigem="{{ t.setor_origem }}"
+                                                    data-dataenvio="{{ t.data_envio|date:'d/m/Y H:i' }}"
+                                                    data-despacho="{{ t.despacho }}"
+                                                    data-observacao="{{ t.observacao }}"
+                                                    data-status="{{ t.status }}"
+                                                    data-exige-assinatura="{{ t.exige_assinatura }}"
+                                                    data-assinado="{{ t.assinado }}"
+                                                    data-assinadopor="{% if t.assinado_por %}{{ t.assinado_por.get_full_name|default:t.assinado_por.username }}{% else %}{% endif %}"
+                                                    data-dataassinatura="{{ t.data_assinatura|date:'d/m/Y H:i' }}"
+                                                    data-aguardar="{{ t.aguardar_resposta }}">
+                                                <i class="bi bi-eye"></i> Visualizar
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="6" class="text-center text-muted py-4">Nenhum documento arquivado.</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    {% load pagination_tags %}
+                    <!-- Paginação de arquivados -->
+                    {% with page_obj=arquivados param_name='page_arq' %}
+                    {% if page_obj.has_other_pages %}
+                    <nav class="mt-4" aria-label="Navegação de páginas">
+                        <ul class="pagination justify-content-center align-items-center shadow-sm p-2 bg-white rounded">
+                            
+                            <!-- Botão -10 páginas -->
+                            {% if page_obj.number > 10 %}
+                                <li class="page-item">
+                                    <a class="page-link text-secondary" href="?{{ param_name }}={{ page_obj.number|add:-10 }}" title="Voltar 10 páginas">
+                                        <i class="bi bi-chevron-double-left"></i> -10
+                                    </a>
+                                </li>
+                            {% endif %}
+
+                            <!-- Botão Anterior (-1) -->
+                            {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?{{ param_name }}={{ page_obj.previous_page_number }}" title="Anterior">
+                                        <i class="bi bi-chevron-left"></i>
+                                    </a>
+                                </li>
+                            {% else %}
+                                <li class="page-item disabled">
+                                    <span class="page-link"><i class="bi bi-chevron-left"></i></span>
+                                </li>
+                            {% endif %}
+
+                            <!-- Números de páginas com reticências -->
+                            {% for p in page_obj|get_pagination_range %}
+                                {% if p == '...' %}
+                                    <li class="page-item disabled"><span class="page-link">…</span></li>
+                                {% elif p == page_obj.number %}
+                                    <li class="page-item active"><span class="page-link fw-bold">{{ p }}</span></li>
+                                {% else %}
+                                    <li class="page-item"><a class="page-link" href="?{{ param_name }}={{ p }}">{{ p }}</a></li>
+                                {% endif %}
+                            {% endfor %}
+
+                            <!-- Botão Próximo (+1) -->
+                            {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?{{ param_name }}={{ page_obj.next_page_number }}" title="Próximo">
+                                        <i class="bi bi-chevron-right"></i>
+                                    </a>
+                                </li>
+                            {% else %}
+                                <li class="page-item disabled">
+                                    <span class="page-link"><i class="bi bi-chevron-right"></i></span>
+                                </li>
+                            {% endif %}
+
+                            <!-- Botão +10 páginas -->
+                            {% with max_page=page_obj.paginator.num_pages %}
+                                {% if page_obj.number|add:10 <= max_page %}
+                                    <li class="page-item">
+                                        <a class="page-link text-secondary" href="?{{ param_name }}={{ page_obj.number|add:10 }}" title="Avançar 10 páginas">
+                                            +10 <i class="bi bi-chevron-double-right"></i>
+                                        </a>
+                                    </li>
+                                {% endif %}
+                            {% endwith %}
+
+                        </ul>
+                    </nav>
+                    {% endif %}
+                    {% endwith %}
+                </div>
+
+            </div>
+                {% endcomment %}
+        </form>
+
+        {% include 'tramitacao/includes/aba_concluidos.html' %}
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MODAL: NOVA TRAMITAÇÃO                     -->
+    <!-- ========================================== -->
+    <div class="modal fade" id="modalNovaTramitacao" tabindex="-1" aria-labelledby="modalNovaTramitacaoLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <form method="POST" action="{% url 'url_nova_tramitacao' %}" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="modal-header bg-success text-white">
+                        <h5 class="modal-title" id="modalNovaTramitacaoLabel"><i class="bi bi-plus-circle"></i> Nova Tramitação</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">Tipo de Documento*</label>
+                                {{ form.tipo_documento }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">Título*</label>
+                                {{ form.titulo }}
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">Setor de Destino*</label>
+                                <select name="setor_destino" id="id_novo_setor_destino" class="form-control js-setor-select" multiple>
+                                    {% for value, label in form.setor_destino.field.choices %}
+                                        <option value="{{ value }}">{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                                <small class="text-muted">Segure Ctrl (ou Cmd no Mac) para selecionar vários, ou escolha "Todos".</small>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">Usuário de Destino (Opcional)</label>
+                                <select name="usuario_destino" id="id_novo_usuario_destino" class="form-control js-user-select" multiple>
+                                    {% for value, label in form.usuario_destino.field.choices %}
+                                        <option value="{{ value }}">{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                                <small class="text-muted">Deixe em branco para enviar a todos do(s) setor(es).</small>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-bold">Data Limite de Resposta</label>
+                                <input type="date" name="data_limite_resposta" class="form-control">
+                            </div>
+                            <div class="col-md-6 mb-3 d-flex align-items-center">
+                                <div class="form-check mt-4">
+                                    {{ form.aguardar_resposta }}
+                                    <label class="form-check-label fw-bold mb-2" for="{{ form.aguardar_resposta.id_for_label }}">Aguardar Resposta</label>
+                                    <br>
+                                    <input class="form-check-input" type="checkbox" name="exige_assinatura" id="exige_assinatura">
+                                    <label class="form-check-label fw-bold" for="exige_assinatura">
+                                        Exigir Assinatura
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Despacho*</label>
+                            {{ form.despacho }}
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Observação</label>
+                            {{ form.observacao }}
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Anexos</label>
+                            <input type="file" name="arquivo_anexo" class="form-control" multiple>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-success"><i class="bi bi-send"></i> Enviar Tramitação</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MODAL DE DETALHES DA TRAMITAÇÃO            -->
+    <!-- ========================================== -->
+    <div class="modal fade" id="modalDetalhesTramitacao" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Detalhes da Tramitação — Protocolo: <span id="modalProtocolo"></span></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6"><strong>Tipo de Documento:</strong> <span id="modalTipoDoc"></span></div>
+                        <div class="col-md-6"><strong>Remetente:</strong> <span id="modalRemetente"></span></div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6"><strong>Setor de Origem:</strong> <span id="modalSetorOrigem"></span></div>
+                        <div class="col-md-6"><strong>Data de Envio:</strong> <span id="modalData"></span></div>
+                    </div>
+                    <div class="mb-3">
+                        <strong>Despacho:</strong>
+                        <p id="modalDespacho" class="p-2 bg-light border rounded mt-1" style="white-space: pre-line;"></p>
+                    </div>
+                    <div class="mb-3" id="divModalObservacao" style="display: none;">
+                        <strong>Observação:</strong>
+                        <p id="modalObservacao" class="p-2 bg-light border rounded mt-1"></p>
+                    </div>
+
+                    <hr>
+                    
+                    <h6 class="fw-bold">Anexos</h6>
+                    <ul id="modalListaAnexos" class="list-group mb-3">
+                        <!-- Preenchido via AJAX -->
+                    </ul>
+
+                    <h6 class="fw-bold">Histórico Completo</h6>
+                    <div id="modalListaHistorico" class="border p-2 rounded bg-light" style="max-height: 250px; overflow-y: auto;">
+                        <!-- Preenchido via AJAX -->
+                    </div>
+
+                    <!-- SEÇÃO DE ASSINATURA ELETRÔNICA NO MODAL -->
+                    <div class="card mt-3 border-light bg-light">
+                        <div class="card-body py-2">
+                            <h6 class="text-muted mb-1"><i class="bi bi-shield-lock"></i> Assinatura Eletrônica</h6>
+                            
+                            <!-- Elemento neutro que será atualizado dinamicamente pelo JavaScript -->
+                            <div id="status-assinatura-container">
+                                <span class="text-muted small">Carregando informações da assinatura...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                    <button type="button" class="btn btn-success" id="btnReceber" style="display: none;">Receber</button>
+                    <button type="button" class="btn btn-warning text-dark" id="btnResponder" style="display: none;">Responder</button>
+                    <button type="button" class="btn btn-danger" id="btnDevolver" style="display: none;">Devolver</button>
+                    <button type="button" id="btnFinalizar" class="btn btn-primary">Finalizar</button>
+
+                    <!-- NOVOS BOTÕES PARA QUANDO ESTIVER DEVOLVIDO -->
+                    <a href="#" id="btnEditarDevolvido" class="btn btn-primary" style="display: none;">
+                        <i class="bi bi-pencil-square"></i> Editar / Reenviar
+                    </a>
+                    <button type="button" class="btn btn-danger" id="btnExcluirDevolvido" style="display: none;">
+                        <i class="bi bi-trash"></i> Excluir
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% include 'tramitacao/includes/modal_resposta.html' %}
+
+    {% include 'tramitacao/includes/modal_edicao.html' %}
+
+    {% include 'tramitacao/includes/modal_assinatura.html' %}
+
+    <script>
+        function criarElemento(tagName, className, text) {
+            const element = document.createElement(tagName);
+            if (className) element.className = className;
+            if (text !== undefined) element.textContent = String(text ?? '');
+            return element;
+        }
+
+        function definirUrlArquivo(element, url) {
+            try {
+                const urlArquivo = new URL(url, window.location.origin);
+                if (urlArquivo.origin === window.location.origin && ['http:', 'https:'].includes(urlArquivo.protocol)) {
+                    element.href = urlArquivo.href;
+                    return true;
+                }
+            } catch (error) {
+                console.error('URL de anexo inválida:', error);
+            }
+            return false;
+        }
+
+        function enviarAcaoPost(url) {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = url;
+
+            const csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.name = 'csrfmiddlewaretoken';
+            csrfInput.value = '{{ csrf_token }}';
+            form.appendChild(csrfInput);
+
+            document.body.appendChild(form);
+            form.submit();
+        }
+
+        function executarAcaoPost(url) {
+            return fetch(url, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+        }
+
+        document.addEventListener("DOMContentLoaded", function(){
+            // Inicialização de Tooltips do Bootstrap
+            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+            var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl)
+            });
+
+            // Selecionar Todos os checkboxes da listagem
+            const btnSelecionarTodos = document.getElementById('btnSelecionarTodos');
+            if (btnSelecionarTodos) {
+                let estadoGlobal = false;
+                btnSelecionarTodos.addEventListener('click', function() {
+                    estadoGlobal = !estadoGlobal;
+                    document.querySelectorAll('.select-item').forEach(cb => cb.checked = estadoGlobal);
+                });
+            }
+
+            // Marcar como Lido em Lote
+            const btnMarcarLido = document.getElementById('btnMarcarLido');
+            if (btnMarcarLido) {
+                btnMarcarLido.addEventListener('click', function() {
+                    const selecionados = document.querySelectorAll('.select-item:checked');
+                    if (selecionados.length === 0) {
+                        alert('Selecione pelo menos uma tramitação.');
+                        return;
+                    }
+                    document.getElementById('inputAcao').value = 'marcar_lido';
+                    document.getElementById('formAcoesLote').submit();
+                });
+            }
+
+            // Arquivar em Lote
+            const btnArquivar = document.getElementById('btnArquivar');
+            if (btnArquivar) {
+                btnArquivar.addEventListener('click', function() {
+                    const selecionados = document.querySelectorAll('.select-item:checked');
+                    if (selecionados.length === 0) {
+                        alert('Selecione pelo menos uma tramitação para arquivar.');
+                        return;
+                    }
+                    document.getElementById('inputAcao').value = 'arquivar';
+                    document.getElementById('formAcoesLote').submit();
+                });
+            }
+
+            // Desarquivar em Lote
+            const btnDesarquivar = document.getElementById('btnDesarquivar');
+            if (btnDesarquivar) {
+                btnDesarquivar.addEventListener('click', function() {
+                    const selecionados = document.querySelectorAll('.select-item:checked');
+                    if (selecionados.length === 0) {
+                        alert('Selecione pelo menos uma tramitação para desarquivar.');
+                        return;
+                    }
+                    if (confirm('Deseja realmente desarquivar os itens selecionados?')) {
+                        document.getElementById('inputAcaoArquivados').value = 'desarquivar';
+                        document.getElementById('formAcoesLoteArquivados').submit();
+                    }
+                });
+            }
+
+            // Excluir em Lote
+            const btnExcluir = document.getElementById('btnExcluirSelecionados');
+            if (btnExcluir) {
+                btnExcluir.addEventListener('click', function() {
+                    const selecionados = document.querySelectorAll('.select-item:checked');
+                    if (selecionados.length === 0) {
+                        alert('Selecione pelo menos uma tramitação para excluir.');
+                        return;
+                    }
+                    if (confirm('Tem certeza que deseja excluir as tramitações selecionadas?')) {
+                        document.getElementById('inputAcao').value = 'excluir';
+                        document.getElementById('formAcoesLote').submit();
+                    }
+                });
+            }
+        });
+
+        // Modal de Detalhes, Histórico, Anexos e Regras de Assinatura Eletrônica
+        document.addEventListener('DOMContentLoaded', function () {
+            const modalDetalhes = document.getElementById('modalDetalhesTramitacao');
+            if (modalDetalhes) {
+                let currentTramitacaoId = null;
+
+                // Função AJAX para carregar o histórico completo da tramitação
+                function carregarHistoricoCompleto(tramitacaoId) {
+                    const containerHistorico = document.getElementById('modalListaHistorico');
+                    if (!containerHistorico) return;
+
+                    containerHistorico.innerHTML = '<span class="text-muted small">Carregando histórico...</span>';
+
+                    fetch(`/tramitacao/${tramitacaoId}/api-historico/`)
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.historico && data.historico.length > 0) {
+                                const historicoFragment = document.createDocumentFragment();
+
+                                data.historico.forEach((item, index) => {
+                                    const card = criarElemento('div', 'card mb-2 shadow-sm border-0 bg-white');
+                                    const cardBody = criarElemento('div', 'card-body p-2');
+                                    const cabecalho = criarElemento('div', 'd-flex justify-content-between text-muted');
+                                    cabecalho.style.fontSize = '0.8rem';
+                                    cabecalho.append(
+                                        criarElemento('span', '', `${index + 1}. ${item.tipo} - ${item.setor} (${item.remetente})`),
+                                        criarElemento('span', '', item.data)
+                                    );
+
+                                    const detalhes = criarElemento('div', 'mt-1');
+                                    detalhes.append(
+                                        criarElemento('strong', 'text-secondary', `Título: ${item.titulo}`)
+                                    );
+                                    const despacho = criarElemento('p', 'mb-1 mt-1 text-dark', item.despacho);
+                                    despacho.style.fontSize = '0.9rem';
+                                    despacho.style.whiteSpace = 'pre-line';
+                                    detalhes.appendChild(despacho);
+
+                                    cardBody.append(cabecalho, detalhes);
+
+                                    if (item.anexos && item.anexos.length > 0) {
+                                        const blocoAnexos = criarElemento('div', 'mt-2 pt-2 border-top');
+                                        const tituloAnexos = criarElemento('small', 'fw-bold text-dark');
+                                        tituloAnexos.append(
+                                            criarElemento('i', 'bi bi-paperclip'),
+                                            document.createTextNode(' Anexos:')
+                                        );
+                                        const listaAnexos = criarElemento('ul', 'mb-0 ps-3 small');
+                                        blocoAnexos.append(tituloAnexos, listaAnexos);
+
+                                        item.anexos.forEach(anexo => {
+                                            const itemAnexo = criarElemento('li');
+                                            const linkAnexo = criarElemento('a', 'text-decoration-none text-primary');
+                                            linkAnexo.target = '_blank';
+                                            if (definirUrlArquivo(linkAnexo, anexo.url)) {
+                                                linkAnexo.append(
+                                                    criarElemento('i', 'bi bi-download'),
+                                                    document.createTextNode(` ${anexo.nome}`)
+                                                );
+                                                itemAnexo.appendChild(linkAnexo);
+                                            } else {
+                                                itemAnexo.textContent = String(anexo.nome ?? 'Anexo indisponível');
+                                            }
+                                            listaAnexos.appendChild(itemAnexo);
+                                        });
+                                        cardBody.appendChild(blocoAnexos);
+                                    }
+
+                                    card.appendChild(cardBody);
+                                    historicoFragment.appendChild(card);
+                                });
+                                containerHistorico.replaceChildren(historicoFragment);
+                            } else {
+                                containerHistorico.replaceChildren(criarElemento('span', 'text-muted small', 'Nenhum histórico encontrado.'));
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Erro ao carregar histórico:', error);
+                            containerHistorico.replaceChildren(criarElemento('span', 'text-danger small', 'Erro ao carregar o histórico.'));
+                        });
+                }
+
+                // Evento disparado quando o modal de detalhes é aberto
+                modalDetalhes.addEventListener('show.bs.modal', function (event) {
+                    const button = event.relatedTarget;
+                    
+                    if (!button) {
+                        console.error("Erro: O botão não foi identificado pelo Bootstrap.");
+                        return;
+                    }
+
+                    currentTramitacaoId = button.getAttribute('data-id') || button.closest('button').getAttribute('data-id');
+
+                    carregarHistoricoCompleto(currentTramitacaoId);
+                    
+                    // Preenche os dados básicos no Modal
+                    document.getElementById('modalProtocolo').textContent = button.getAttribute('data-protocolo');
+                    document.getElementById('modalTipoDoc').textContent = button.getAttribute('data-tipodoc');
+                    document.getElementById('modalRemetente').textContent = button.getAttribute('data-remetente');
+                    document.getElementById('modalSetorOrigem').textContent = button.getAttribute('data-setororigem');
+                    document.getElementById('modalData').textContent = button.getAttribute('data-dataenvio');
+                    document.getElementById('modalDespacho').textContent = button.getAttribute('data-despacho');
+                    
+                    const observacao = button.getAttribute('data-observacao');
+                    const divObs = document.getElementById('divModalObservacao');
+                    if (observacao && observacao !== 'None' && observacao.trim() !== '') {
+                        document.getElementById('modalObservacao').textContent = observacao;
+                        divObs.style.display = 'block';
+                    } else {
+                        divObs.style.display = 'none';
+                    }
+                    
+                    // ==========================================
+                    // CAPTURA E CONFIGURAÇÃO DA ASSINATURA ELETRÔNICA
+                    // ==========================================
+                    const exigeAssinatura = button.getAttribute('data-exige-assinatura') === 'True' || button.getAttribute('data-exige-assinatura') === 'true';
+                    const assinado = button.getAttribute('data-assinado') === 'True' || button.getAttribute('data-assinado') === 'true';
+                    const assinadoPor = button.getAttribute('data-assinadopor') || '';
+                    const dataAssinatura = button.getAttribute('data-dataassinatura') || '';
+                    
+                    // Container dinâmico de assinatura dentro do modal
+                    const containerAssinatura = document.getElementById('status-assinatura-container');
+                    if (containerAssinatura) {
+                        containerAssinatura.replaceChildren();
+                        if (exigeAssinatura) {
+                            if (assinado) {
+                                const statusAssinado = criarElemento('span', 'text-success fw-bold');
+                                statusAssinado.append(
+                                    criarElemento('i', 'bi bi-patch-check-fill'),
+                                    document.createTextNode(' Assinado digitalmente')
+                                );
+                                const detalhesAssinatura = criarElemento('div', 'small text-muted mt-1');
+                                detalhesAssinatura.append(
+                                    document.createTextNode('Por: '),
+                                    criarElemento('strong', '', assinadoPor),
+                                    document.createTextNode(dataAssinatura ? ` em ${dataAssinatura}` : '')
+                                );
+                                containerAssinatura.append(statusAssinado, detalhesAssinatura);
+                            } else {
+                                const statusPendente = criarElemento('span', 'text-warning fw-bold');
+                                statusPendente.append(
+                                    criarElemento('i', 'bi bi-hourglass-split'),
+                                    document.createTextNode(' Aguardando Assinatura Eletrônica')
+                                );
+                                const acoesAssinatura = criarElemento('div', 'mt-2');
+                                const btnAssinarAgora = criarElemento('button', 'btn btn-sm btn-outline-dark');
+                                btnAssinarAgora.type = 'button';
+                                btnAssinarAgora.id = 'btnDispararModalAssinatura';
+                                btnAssinarAgora.dataset.bsToggle = 'modal';
+                                btnAssinarAgora.dataset.bsTarget = '#modalAssinatura';
+                                btnAssinarAgora.append(
+                                    criarElemento('i', 'bi bi-pen-fill'),
+                                    document.createTextNode(' Assinar Documento Agora')
+                                );
+                                acoesAssinatura.appendChild(btnAssinarAgora);
+                                containerAssinatura.append(statusPendente, acoesAssinatura);
+
+                                // Configura dinamicamente o link/ação do formulário de assinatura quando clicado
+                                btnAssinarAgora.addEventListener('click', function() {
+                                    const modalDetalhesBs = bootstrap.Modal.getInstance(modalDetalhes);
+                                    if (modalDetalhesBs) modalDetalhesBs.hide();
+
+                                    const formAssinatura = document.getElementById('formAssinaturaEletronica');
+                                    if (formAssinatura) {
+                                        formAssinatura.action = `/tramitacao/${currentTramitacaoId}/assinar/`;
+                                    }
+                                });
+                            }
+                        } else {
+                            containerAssinatura.appendChild(criarElemento('span', 'text-muted small', 'Este documento não exige assinatura eletrônica.'));
+                        }
+                    }
+
+                    // Configuração do botão "Finalizar" da tramitação padrão
+                    const btnFinalizar = document.getElementById('btnFinalizar');
+                    if (btnFinalizar) {
+                        btnFinalizar.innerHTML = 'Finalizar Tramitação';
+                        btnFinalizar.className = 'btn btn-primary';
+                        btnFinalizar.onclick = function() {
+                            enviarAcaoPost(`/tramitacao/${currentTramitacaoId}/finalizar/`);
+                        };
+                    }
+
+                    // Outros redirecionamentos padrão de botões
+                    const btnReceber = document.getElementById('btnReceber');
+                    const btnResponder = document.getElementById('btnResponder');
+                    const btnDevolver = document.getElementById('btnDevolver');
+                    const btnEditarDevolvido = document.getElementById('btnEditarDevolvido');
+                    const btnExcluirDevolvido = document.getElementById('btnExcluirDevolvido');
+
+                    if (btnReceber) btnReceber.onclick = function() {
+                        executarAcaoPost(`/tramitacao/${currentTramitacaoId}/receber/`)
+                            .then(response => {
+                                if (!response.ok) throw new Error('Não foi possível receber a tramitação.');
+                                const formAssinatura = document.getElementById('formAssinaturaEletronica');
+                                if (exigeAssinatura && formAssinatura) {
+                                    formAssinatura.action = `/tramitacao/${currentTramitacaoId}/assinar/`;
+                                    bootstrap.Modal.getOrCreateInstance(document.getElementById('modalDetalhesTramitacao')).hide();
+                                    bootstrap.Modal.getOrCreateInstance(document.getElementById('modalAssinatura')).show();
+                                } else if (aguardarResposta) {
+                                    document.getElementById('btnResponder').click();
+                                } else {
+                                    window.location.reload();
+                                }
+                            })
+                            .catch(error => {
+                                console.error(error);
+                                window.location.reload();
+                            });
+                    };
+                    if (btnDevolver) btnDevolver.onclick = function() { enviarAcaoPost(`/tramitacao/${currentTramitacaoId}/devolver/`); };
+                    
+                    const status = button.getAttribute('data-status');
+                    const aguardarResposta = button.getAttribute('data-aguardar') === 'True';
+                    const origemPropria = button.getAttribute('data-origem-propria') === 'true';
+                    
+                    // Configuração da edição de itens devolvidos
+                    if (btnEditarDevolvido) {
+                        btnEditarDevolvido.onclick = function() {
+                            const protocolo = document.getElementById('modalProtocolo').textContent;
+                            const documentoEditModal = document.getElementById('editProtocolo');
+                            if (documentoEditModal) documentoEditModal.textContent = protocolo;
+                            
+                            const formEditar = document.getElementById('formEditarTramitacao');
+                            if (formEditar) formEditar.action = `/tramitacao/${currentTramitacaoId}/editar/`;
+
+                            var modalDetalhesBs = bootstrap.Modal.getInstance(modalDetalhes);
+                            if (modalDetalhesBs) modalDetalhesBs.hide();
+
+                            var modalEditarEl = document.getElementById('modalEditarTramitacao');
+                            if (modalEditarEl) {
+                                var modalEditar = new bootstrap.Modal(modalEditarEl);
+                                modalEditar.show();
+                            }
+                        };
+                    }
+
+                    // Reseta a visibilidade dos botões de ação do Modal
+                    if (btnReceber) btnReceber.style.display = 'none';
+                    if (btnResponder) btnResponder.style.display = 'none';
+                    if (btnFinalizar) btnFinalizar.style.display = 'none';
+                    if (btnDevolver) btnDevolver.style.display = 'none';
+                    if (btnEditarDevolvido) btnEditarDevolvido.style.display = 'none';
+                    if (btnExcluirDevolvido) btnExcluirDevolvido.style.display = 'none';
+
+                    // Regras de exibição de botões com base no status e origem
+                    if (!origemPropria) {
+                        if (status === 'PENDENTE') {
+                            if (btnReceber) btnReceber.style.display = 'inline-block';
+                            if (btnDevolver) btnDevolver.style.display = 'inline-block';
+                        } else if (status === 'RECEBIDO') {
+                            if (btnFinalizar) btnFinalizar.style.display = 'inline-block';
+                            if (btnDevolver) btnDevolver.style.display = 'inline-block';
+                            if (aguardarResposta && btnResponder) {
+                                btnResponder.style.display = 'inline-block';
+                            }
+                        }
+                    }
+                    if (status === 'DEVOLVIDO') {
+                        if (btnEditarDevolvido) btnEditarDevolvido.style.display = 'inline-block';
+                        if (btnExcluirDevolvido) {
+                            btnExcluirDevolvido.style.display = 'inline-block';
+                            btnExcluirDevolvido.onclick = function() {
+                                if (confirm('Tem certeza que deseja excluir esta tramitação devolvida?')) {
+                                    enviarAcaoPost(`/tramitacao/${currentTramitacaoId}/excluir/`);
+                                }
+                            };
+                        }
+                    }
+                    
+                    // Carregamento de Anexos da tramitação via AJAX
+                    const listaAnexos = document.getElementById('modalListaAnexos');
+                    if (listaAnexos) {
+                        listaAnexos.innerHTML = '<li class="list-group-item text-muted">Carregando anexos...</li>';
+                        
+                        fetch(`/tramitacao/${currentTramitacaoId}/anexos/`)
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.anexos && data.anexos.length > 0) {
+                                    const anexosFragment = document.createDocumentFragment();
+                                    data.anexos.forEach(anexo => {
+                                        const li = document.createElement('li');
+                                        li.className = 'list-group-item d-flex justify-content-between align-items-center';
+                                        const nomeAnexo = criarElemento('span');
+                                        nomeAnexo.append(
+                                            criarElemento('i', 'bi bi-file-earmark'),
+                                            document.createTextNode(` ${anexo.nome}`)
+                                        );
+                                        const botoesAnexo = criarElemento('div', 'btn-group');
+                                        const linkVisualizar = criarElemento('a', 'btn btn-sm btn-outline-secondary');
+                                        linkVisualizar.target = '_blank';
+                                        linkVisualizar.title = 'Visualizar';
+                                        linkVisualizar.appendChild(criarElemento('i', 'bi bi-eye'));
+                                        const linkBaixar = criarElemento('a', 'btn btn-sm btn-outline-primary');
+                                        linkBaixar.download = '';
+                                        linkBaixar.title = 'Baixar';
+                                        linkBaixar.appendChild(criarElemento('i', 'bi bi-download'));
+
+                                        if (definirUrlArquivo(linkVisualizar, anexo.url) && definirUrlArquivo(linkBaixar, anexo.url)) {
+                                            botoesAnexo.append(linkVisualizar, linkBaixar);
+                                            li.append(nomeAnexo, botoesAnexo);
+                                        } else {
+                                            li.append(nomeAnexo);
+                                        }
+                                        anexosFragment.appendChild(li);
+                                    });
+                                    listaAnexos.replaceChildren(anexosFragment);
+                                } else {
+                                    listaAnexos.replaceChildren(criarElemento('li', 'list-group-item text-muted', 'Nenhum anexo encontrado.'));
+                                }
+                            })
+                            .catch(() => {
+                                listaAnexos.replaceChildren(criarElemento('li', 'list-group-item text-danger', 'Erro ao carregar anexos.'));
+                            });
+                    }
+                });
+
+                // Ação do botão de Responder
+                const btnResponderModal = document.getElementById('btnResponder');
+                if (btnResponderModal) {
+                    btnResponderModal.addEventListener('click', function() {
+                        const protocolo = document.getElementById('modalProtocolo').textContent;
+                        const tipoDoc = document.getElementById('modalTipoDoc').textContent;
+                        const remetente = document.getElementById('modalRemetente').textContent;
+                        const setorOrigem = document.getElementById('modalSetorOrigem').textContent;
+                        const despacho = document.getElementById('modalDespacho').textContent;
+
+                        document.getElementById('respProtocolo').textContent = protocolo;
+                        document.getElementById('respTipoDoc').textContent = tipoDoc;
+                        document.getElementById('respRemetente').textContent = remetente;
+                        document.getElementById('respSetorOrigem').textContent = setorOrigem;
+                        document.getElementById('respDespachoAnterior').textContent = despacho;
+                        
+                        document.getElementById('formResponder').action = `/tramitacao/${currentTramitacaoId}/responder/`;
+
+                        var modalDetalhesEl = document.getElementById('modalDetalhesTramitacao');
+                        var modalDetalhesBs = bootstrap.Modal.getInstance(modalDetalhesEl);
+                        if (modalDetalhesBs) modalDetalhesBs.hide();
+
+                        var modalResponder = new bootstrap.Modal(document.getElementById('modalResponderTramitacao'));
+                        modalResponder.show();
+                    });
+                }
+            }
+        });
+
+        // Script AJAX para preenchimento dinâmico de Usuários por Setor (Remetente -> Destino)
+        document.addEventListener('DOMContentLoaded', function () {
+            const modalAcaoBloqueada = document.getElementById('modalAcaoBloqueada');
+            if (modalAcaoBloqueada) {
+                bootstrap.Modal.getOrCreateInstance(modalAcaoBloqueada).show();
+            }
+
+            function configurarUsuariosPorSetor(setorSelect, usuarioSelect) {
+                if (!setorSelect || !usuarioSelect) return;
+
+                setorSelect.addEventListener('change', function () {
+                    const selectedOptions = Array.from(this.selectedOptions).map(opt => opt.value);
+
+                    if (selectedOptions.includes('todos')) {
+                        Array.from(this.options).forEach(opt => {
+                            if (opt.value !== 'todos') opt.selected = true;
+                        });
+                        this.querySelector('option[value="todos"]').selected = false;
+                    }
+
+                    const currentSetores = Array.from(this.selectedOptions).map(opt => opt.value);
+
+                    if (currentSetores.length === 0) {
+                        usuarioSelect.replaceChildren();
+                        return;
+                    }
+
+                    usuarioSelect.replaceChildren(criarElemento('option', '', 'Carregando usuários...'));
+
+                    const queryParams = currentSetores.map(id => `setor_id=${id}`).join('&');
+
+                    fetch(`/tramitacao/ajax/usuarios-setores/?${queryParams}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.usuarios && data.usuarios.length > 0) {
+                                const usuariosFragment = document.createDocumentFragment();
+                                data.usuarios.forEach(user => {
+                                    const setorExibicao = user.setor ? ` - ${user.setor}` : '';
+                                    const option = criarElemento('option', '', `${user.nome}${setorExibicao}`);
+                                    option.value = user.id;
+                                    usuariosFragment.appendChild(option);
+                                });
+                                usuarioSelect.replaceChildren(usuariosFragment);
+                            } else {
+                                const option = criarElemento('option', '', 'Nenhum usuário encontrado');
+                                option.value = '';
+                                option.disabled = true;
+                                usuarioSelect.replaceChildren(option);
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Erro ao buscar usuários:', error);
+                            const option = criarElemento('option', '', 'Erro ao carregar usuários');
+                            option.value = '';
+                            option.disabled = true;
+                            usuarioSelect.replaceChildren(option);
+                        });
+                });
+            }
+
+            configurarUsuariosPorSetor(
+                document.getElementById('id_novo_setor_destino'),
+                document.getElementById('id_novo_usuario_destino'),
+            );
+            configurarUsuariosPorSetor(
+                document.getElementById('id_setor_destino'),
+                document.getElementById('id_usuario_destino'),
+            );
+        });
+
+        // Ocultar barra de ações em lote quando estiver na aba de Concluídos
+        document.querySelectorAll('button[data-bs-toggle="tab"]').forEach(tab => {
+            tab.addEventListener('shown.bs.tab', function (event) {
+                const targetId = event.target.getAttribute('data-bs-target');
+                const barraAcoes = document.querySelector('.barra-acoes-lote');
+                
+                if (targetId === '#concluidos') {
+                    barraAcoes.style.display = 'none';
+                } else {
+                    barraAcoes.style.display = 'flex';
+                }
+            });
+        });
+
+        // Gerenciamento de paginação por abas via URL Parameters
+        document.addEventListener("DOMContentLoaded", function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            let activeTabId = 'recebidos-tab';
+            
+            if (urlParams.has('page_env')) {
+                activeTabId = 'enviados-tab';
+            } else if (urlParams.has('page_arq')) {
+                activeTabId = 'arquivados-tab';
+            } else if (urlParams.has('page_conc')) {
+                activeTabId = 'concluidos-tab';
+            } else if (urlParams.has('page_rec')) {
+                activeTabId = 'recebidos-tab';
+            }
+
+            const triggerEl = document.getElementById(activeTabId);
+            if (triggerEl) {
+                const tabTrigger = new bootstrap.Tab(triggerEl);
+                tabTrigger.show();
+            }
+        });
+
+    </script>
+{% endblock %}

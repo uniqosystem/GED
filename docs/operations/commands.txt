@@ -1,0 +1,9 @@
+COMANDOS POWERSHELL
+
+python manage.py createsuperuser (CRIAR SUPER USUÁRIO / ADMIN)
+
+python manage.py makemigrations
+python manage.py migrate (MIGRAR OS MODELS)
+
+python manage.py runserver (INICIAR O SERVIDOR)
+

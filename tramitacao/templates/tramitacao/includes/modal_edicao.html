@@ -1,0 +1,70 @@
+<!-- ========================================== -->
+<!-- MODAL DE EDIÇÃO DA TRAMITAÇÃO (DEVOLVIDA)  -->
+<!-- ========================================== -->
+<div class="modal fade" id="modalEditarTramitacao" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content" style="max-height: 90vh;">
+            <form id="formEditarTramitacao" method="POST" enctype="multipart/form-data" novalidate>
+                {% csrf_token %}
+                <div class="modal-header bg-white py-2">
+                    <h5 class="modal-title fs-6">Editar Tramitação Devolvida — Protocolo: <span id="editProtocolo"></span></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+
+                <div class="modal-body" style="max-height: calc(90vh - 120px); overflow-y: auto;">
+                    <div class="row">
+                        <div class="col-md-6 mb-2">
+                            <label class="form-label fw-bold small">Tipo de Documento</label>
+                            {{ form.tipo_documento }}
+                        </div>
+                        <div class="col-md-6 mb-2">
+                            <label class="form-label fw-bold small">Título</label>
+                            {{ form.titulo }}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-2">
+                            <label class="form-label fw-bold small">Setor de Destino</label>
+                            {{ form.setor_destino }}
+                        </div>
+                        <div class="col-md-6 mb-2">
+                            <label class="form-label fw-bold small">Usuário de Destino (Opcional)</label>
+                            {{ form.usuario_destino }}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-2">
+                            <label class="form-label fw-bold small">Data Limite de Resposta</label>
+                            {{ form.data_limite_resposta }}
+                        </div>
+                        <div class="col-md-6 mb-2 d-flex align-items-center">
+                            <div class="form-check mt-3">
+                                {{ form.aguardar_resposta }}
+                                <label class="form-check-label fw-bold small" for="{{ form.aguardar_resposta.id_for_label }}">Aguardar Resposta</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-2 d-flex align-items-center">
+                            <div class="form-check mt-3">
+                                {{ form.exige_assinatura }}
+                                <label class="form-check-label fw-bold small" for="{{ form.exige_assinatura.id_for_label }}">Exigir Assinatura</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label fw-bold small">Novo Despacho / Correção:</label>
+                        {{ form.despacho }}
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label fw-bold small">Observação:</label>
+                        {{ form.observacao }}
+                    </div>
+                </div>
+
+                <div class="modal-footer bg-light py-2">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary btn-sm">Salvar e Reenviar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

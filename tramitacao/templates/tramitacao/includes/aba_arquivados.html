@@ -1,0 +1,18 @@
+<!-- ABA: ARQUIVADOS -->
+<div class="tab-pane fade" id="arquivados" role="tabpanel">
+    <div class="table-responsive bg-white p-3 shadow-sm rounded">
+        <table id="aba-arquivados" class="table table-hover align-middle">
+            <thead class="table-light"><tr><th style="width: 40px;">#</th><th>Protocolo</th><th>Data/Hora</th><th>Origem / Destino</th><th>Tipo / Título</th><th class="text-center">Ações</th></tr></thead>
+            <tbody>
+                {% for t in arquivados %}
+                <tr>
+                    <td><input type="checkbox" name="tramitacoes_ids" value="{{ t.id }}" class="select-item form-check-input"></td><td><strong>{{ t.protocolo }}</strong></td><td>{{ t.data_envio|date:"d/m/Y H:i" }}</td><td>{{ t.setor_origem }} → {{ t.setor_destino }}</td>
+                    <td><span class="text-muted d-block small">{{ t.tipo_documento }}</span><a href="#" data-bs-toggle="modal" data-bs-target="#modalDetalhesTramitacao" data-id="{{ t.id }}" data-protocolo="{{ t.protocolo }}" data-tipodoc="{{ t.tipo_documento }}" data-remetente="{{ t.remetente.get_full_name|default:t.remetente.username }}" data-setororigem="{{ t.setor_origem }}" data-dataenvio="{{ t.data_envio|date:'d/m/Y H:i' }}" data-despacho="{{ t.despacho }}" data-observacao="{{ t.observacao }}" data-status="{{ t.status }}" data-aguardar="{{ t.aguardar_resposta }}" data-exige-assinatura="{{ t.exige_assinatura }}" data-assinado="{{ t.assinado }}" class="fw-bold text-decoration-none">{{ t.titulo }}</a></td>
+                    <td class="text-center"><button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalDetalhesTramitacao" data-id="{{ t.id }}" data-protocolo="{{ t.protocolo }}" data-tipodoc="{{ t.tipo_documento }}" data-remetente="{% if t.remetente %}{{ t.remetente.get_full_name|default:t.remetente.username }}{% else %}-{% endif %}" data-setororigem="{{ t.setor_origem }}" data-dataenvio="{{ t.data_envio|date:'d/m/Y H:i' }}" data-despacho="{{ t.despacho }}" data-observacao="{{ t.observacao }}" data-status="{{ t.status }}" data-exige-assinatura="{{ t.exige_assinatura }}" data-assinado="{{ t.assinado }}" data-assinadopor="{% if t.assinado_por %}{{ t.assinado_por.get_full_name|default:t.assinado_por.username }}{% endif %}" data-dataassinatura="{{ t.data_assinatura|date:'d/m/Y H:i' }}" data-aguardar="{{ t.aguardar_resposta }}"><i class="bi bi-eye"></i> Visualizar</button></td>
+                </tr>
+                {% empty %}<tr><td colspan="6" class="text-center text-muted py-4">Nenhum documento arquivado.</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% include 'tramitacao/includes/paginacao.html' with page_obj=arquivados param_name='page_arq' %}
+</div>

@@ -1,0 +1,52 @@
+<!-- ========================================== -->
+<!-- MODAL DE RESPONDER TRAMITAÇÃO              -->
+<!-- ========================================== -->
+<div class="modal fade" id="modalResponderTramitacao" tabindex="-1" aria-labelledby="modalResponderLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form id="formResponder" method="POST" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="modalResponderLabel"><i class="bi bi-reply-fill"></i> Responder / Despachar Tramitação</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="card bg-light mb-3 border-0">
+                        <div class="card-body small">
+                            <p class="mb-1"><strong>Protocolo:</strong> <span id="respProtocolo"></span></p>
+                            <p class="mb-1"><strong>Tipo Doc:</strong> <span id="respTipoDoc"></span></p>
+                            <p class="mb-1"><strong>Remetente Original:</strong> <span id="respRemetente"></span> (<span id="respSetorOrigem"></span>)</p>
+                            <hr class="my-1">
+                            <p class="mb-0 text-muted"><strong>Despacho Anterior:</strong> <span id="respDespachoAnterior"></span></p>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="respDespacho" class="form-label fw-bold">Seu Novo Despacho <span class="text-danger">*</span></label>
+                        <textarea class="form-control" id="respDespacho" name="despacho" rows="4" required placeholder="Digite sua resposta aqui..."></textarea>
+                    </div>
+
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="respAguardarResposta" name="aguardar_resposta" value="True">
+                        <label class="form-check-label" for="respAguardarResposta">Aguardar resposta deste setor?</label>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="respObservacao" class="form-label">Observação (Opcional)</label>
+                        <textarea class="form-control" id="respObservacao" name="observacao" rows="2" placeholder="Observações internas..."></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="respAnexos" class="form-label">Anexos</label>
+                        <input class="form-control" type="file" id="respAnexos" name="anexos" multiple>
+                        <div class="form-text">Você pode selecionar múltiplos arquivos se necessário.</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-send"></i> Enviar Resposta</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

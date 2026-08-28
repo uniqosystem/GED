@@ -1,0 +1,95 @@
+{% extends 'core/base.html' %}
+
+{% block conteudo %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="h2">Gerar lote e-Carta</h1>
+        <div>
+            <span class="badge bg-primary fs-6">Usuário: {{ request.user.get_full_name|default:request.user.username }}</span>
+            <span class="badge bg-secondary fs-6 me-2">Setor: {{ setor_usuario.nome|default:"Sem Setor" }}</span>
+        </div>
+    </div>
+    
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <!-- Coluna do Passo a Passo (AGORA NO TOPO) -->
+            <div class="card shadow mb-5 border-left-info">
+                <div class="card-header py-3 bg-light">
+                    <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-info-circle me-2"></i> PASSO A PASSO (Sagicon)</h6>
+                </div>
+                <div class="card-body">
+                    <ol class="ps-3" style="line-height: 1.8;">
+                        <li>Faça login no <strong>Sagicon</strong> pelo link: <br>
+                            <a href="https://crfpb-sagicon.cisantec.com.br/sagicon/paginas/index.jsf" target="_blank" class="text-break">
+                                https://crfpb-sagicon.cisantec.com.br/sagicon/paginas/index.jsf
+                            </a>
+                        </li>
+                        <li>No menu lateral, clique em <strong>Cadastros > Relatórios Cadastros > Geral</strong>.</li>
+                        <li>Selecione o <strong>TIPO DE CADASTRO</strong> desejado.</li>
+                        <li>Em <strong>Campos do Relatório</strong>, deixe marcado <u>APENAS</u> os campos:
+                            <div class="alert alert-secondary py-2 my-2 font-monospace small">
+                                NOME, ENDEREÇO, NÚM. ENDEREÇO, END. COMPLEMENTO, BAIRRO, CIDADE, UF, CEP
+                            </div>
+                        </li>
+                        <li>Logo abaixo, em <strong>Filtros</strong>, vá no filtro de acordo com o tipo de cadastro escolhido e selecione: <strong>Situação da Firma/Farmacêutico</strong> e <strong>Condição da Firma/Tipo de Associado</strong>.</li>
+                        <li>Clique em <strong>Pesquisar</strong> e depois em <strong>XLS</strong> para gerar o arquivo.</li>
+                        <li>Anexe o arquivo gerado no formulário abaixo e processe o lote para o e-Carta!</li>
+                    </ol>
+                </div>
+            </div>
+
+            <!-- Sistema de Geração (EMBAIXO) -->
+            <div class="card shadow p-4">
+                <h4 class="mb-3 text-secondary">Sistema de Processamento</h4>
+                
+                <!-- Mensagens de Feedback -->
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+
+                <!-- Formulário de Envio -->
+                <form method="POST" enctype="multipart/form-data" class="mb-4">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label for="arquivo_csv" class="form-label font-weight-bold">Selecione o arquivo (.xls, .xlsx ou .csv)</label>
+                        <input type="file" class="form-control" name="arquivo_csv" id="arquivo_csv" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label font-weight-bold">Status do Lote</label>
+                        <input type="text" class="form-control bg-light" value="Automático (Próximo lote disponível)" readonly>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-lg w-100">
+                        <i class="fas fa-cogs me-1"></i> Processar e Gerar Lote
+                    </button>
+                </form>
+
+                <!-- Seção de Download (Aparece apenas após gerar com sucesso) -->
+                {% if gerado %}
+                <div class="card p-4 bg-light border-success">
+                    <h5 class="text-success mb-3"><i class="fas fa-check-circle"></i> Lote {{ lote }} gerado com sucesso!</h5>
+                    <p class="mb-3">Clique abaixo para baixar os pacotes necessários:</p>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-start">
+                        <a href="{% url 'baixar_servico' %}" class="btn btn-success btn-lg">
+                            <i class="fas fa-download me-1"></i> Baixar Serviço (.zip)
+                        </a>
+                        <a href="{% url 'baixar_resposta' %}" class="btn btn-info btn-lg text-white">
+                            <i class="fas fa-download me-1"></i> Baixar Resposta (.zip)
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}

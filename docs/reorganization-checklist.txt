@@ -1,0 +1,275 @@
+GED_CRFPB - Checklist de auditoria e reorganizacao
+Data inicial: 2026-08-27
+Status: reorganizacao estrutural concluida no ambiente de desenvolvimento; pendencias operacionais externas registradas
+
+LEGENDA
+[x] concluido e validado
+[~] identificado, mas ainda nao aplicado
+[ ] pendente
+[!] requer confirmacao antes de uma acao potencialmente destrutiva
+
+1. AUDITORIA INICIAL
+[x] Identificar linguagem e framework: Python + Django 6.0.6.
+[x] Identificar arquitetura atual: monolito Django com apps core, tramitacao e ecarta.
+[x] Identificar entrada administrativa: manage.py.
+[x] Identificar entrada WSGI: setup/wsgi.py.
+[x] Identificar entrada ASGI: setup/asgi.py.
+[x] Identificar servidor Waitress: run_server.py.
+[x] Ler configuracoes principais: setup/settings.py e setup/urls.py.
+[x] Ler dependencias: requirements.txt.
+[x] Mapear rotas dos apps.
+[x] Mapear imports e dependencias entre apps.
+[x] Verificar duplicacoes de arquivos de interface.
+[x] Verificar testes existentes.
+[x] Executar python manage.py check: aprovado, nenhum problema.
+[x] Executar python manage.py test --verbosity 1: 108 testes aprovados, 1 ignorado.
+
+2. DIAGNOSTICO REGISTRADO
+[x] Documentar responsabilidades misturadas em core/views.py.
+[x] Documentar responsabilidades misturadas em core/models.py.
+[x] Documentar services.py como fachada de compatibilidade da tramitacao.
+[x] Documentar testes concentrados em arquivos unicos.
+[x] Documentar duplicacao entre static, staticfiles e staticos dos apps.
+[x] Documentar scripts operacionais com caminhos fixos.
+[x] Documentar ANALYSIS_REPORT.md como relatorio historico possivelmente desatualizado.
+[x] Verificar se ha arquivo seguro para remocao: nenhum confirmado.
+[x] Avaliar ciclos entre core, tramitacao e ecarta: nenhum ciclo estrutural confirmado.
+
+3. ORGANIZACAO DOCUMENTAL E OPERACIONAL
+[x] Mover ANALYSIS_REPORT.md para docs/archive/analysis-report-2026-08-25.md.
+[x] Verificar referencias internas ao relatorio movido: nenhuma referencia de runtime encontrada.
+[x] Mover COMANDOS POWERSHELL.txt para docs/operations/commands.txt.
+[x] Validar os destinos dos documentos movidos: ambos existem.
+[x] Verificar caminhos antigos dos documentos: nenhum permaneceu no local original.
+[x] Executar python manage.py check apos a reorganizacao documental: aprovado.
+[ ] Mover scripts de backup para ops/backup/.
+[x] Auditar scripts de backup e caminhos configurados.
+[x] Registrar riscos de /MIR, banco SQLite, codigos Robocopy e data dependente de locale.
+[x] Criar docs/operations/backups.md com proposta de migracao segura.
+[!] Confirmar referencias externas aos scripts antes de move-los.
+[!] Confirmar se staticfiles e versionado ou usado diretamente pelo deploy.
+[!] Confirmar politica de backup do db.sqlite3.
+
+4. SEPARACAO DE TESTES
+[x] Separar core/tests.py por assunto em core/tests/, preservando classes e imports publicos.
+[x] Remover core/tests.py apos confirmar que o pacote substituto foi descoberto pelo Django.
+[x] Executar testes do core: 30 testes encontrados, 29 aprovados e 1 ignorado.
+[x] Separar tramitacao/tests.py por assunto, preservando descoberta Django; o arquivo legado ficou exclusivo dos testes de navegador.
+[x] Separacao de tramitacao/tests.py concluida: seguranca, operacoes, workflow e HTTP foram extraidos; Playwright permanece em modulo proprio.
+[x] Extrair TramitacaoSecurityTests para tramitacao/test_security.py.
+[x] Remover TramitacaoSecurityTests de tramitacao/tests.py sem duplicacao.
+[x] Executar tramitacao.test_security: 14 testes aprovados.
+[x] Executar tramitacao completa apos a primeira extracao: 51 testes descobertos e aprovados.
+[x] Repetir o teste Playwright afetado: aprovado em 4.533s.
+[x] Extrair VencimentoCommandTests e TramitationAttachmentCleanupTests para tramitacao/test_operations.py.
+[x] Remover os grupos operacionais de tramitacao/tests.py sem duplicacao.
+[x] Executar tramitacao completa apos a extracao operacional: 51 testes aprovados.
+[x] Revalidar os modulos extraidos em conjunto: 17 testes aprovados.
+[x] Avaliar extracao de TramitationWorkflowTests: grupo extraido para test_workflow.py sem duplicacao.
+[x] Extrair TramitationWorkflowTests para tramitacao/test_workflow.py.
+[x] Impedir a descoberta duplicada do bloco legado durante a transicao.
+[x] Executar tramitacao.test_workflow: 20 testes aprovados.
+[x] Executar tramitacao.test_workflow tramitacao: 51 testes aprovados.
+[x] Remover fisicamente o bloco TramitationWorkflowLegacy de tramitacao/tests.py durante a consolidacao do arquivo de navegador.
+[x] Consolidar tramitacao/tests.py como módulo exclusivo dos testes de navegador.
+[x] Extrair TramitationHttpTests para tramitacao/test_http.py.
+[x] Remover TramitationHttpTests do arquivo legado.
+[x] Executar tramitacao.test_http: 6 testes aprovados.
+[x] Remover fisicamente o bloco TramitationWorkflowLegacy ao consolidar o arquivo legado.
+[x] Extrair endpoints JSON para tramitacao/api_views.py.
+[x] Atualizar tramitacao/urls.py para usar api_views diretamente.
+[x] Manter aliases em tramitacao/views.py para compatibilidade externa.
+[x] Validar API views: 20 testes focados aprovados.
+[x] Extrair caixa_entrada e nova_tramitacao para tramitacao/inbox_views.py.
+[x] Manter aliases dessas views em tramitacao/views.py.
+[x] Validar inbox_views com os testes HTTP: 6 testes aprovados.
+[x] Extrair ações individuais para tramitacao/action_views.py.
+[x] Atualizar rotas de receber, responder, editar, finalizar, devolver, excluir e assinar.
+[x] Validar action_views com workflow e HTTP: 26 testes aprovados.
+[x] Validar suite completa apos extrair action_views: 81 testes aprovados, 1 ignorado.
+[x] Reduzir tramitacao/views.py a fachada de compatibilidade sem implementacoes duplicadas.
+[x] Preservar aliases de inbox_views, action_views e api_views.
+[x] Validar fachada com workflow, HTTP e testes extraidos: 43 testes aprovados.
+[x] Validar imports e configuracao apos a limpeza da fachada.
+[x] Direcionar rotas de autenticacao do core diretamente para core/auth_views.py.
+[x] Preservar aliases de autenticacao em core/views.py.
+[x] Validar autenticacao e seguranca: 16 testes aprovados.
+[x] Extrair visualizacao, download e renomeacao para core/file_views.py.
+[x] Atualizar core/urls.py para usar file_views diretamente.
+[x] Manter aliases do fluxo de arquivos em core/views.py.
+[x] Validar file_views: 17 testes focados, 16 aprovados e 1 ignorado por link simbolico.
+[x] Extrair upload geral, upload multiplo e criacao de subpasta para core/storage_views.py.
+[x] Atualizar core/urls.py para usar storage_views diretamente.
+[x] Manter aliases de storage_views em core/views.py.
+[x] Corrigir e validar a fachada apos remocao do bloco legado de criar_subpasta.
+[x] Validar storage_views: 17 testes focados, 16 aprovados e 1 ignorado.
+[x] Validar suite completa apos extrair storage_views: 81 testes aprovados, 1 ignorado.
+[x] Extrair busca e navegacao para core/navigation_views.py.
+[x] Atualizar core/urls.py para usar navigation_views diretamente.
+[x] Manter aliases de navigation_views em core/views.py.
+[x] Validar imports e seguranca apos extrair navigation_views.
+[x] Extrair lixeira para core/trash_views.py.
+[x] Extrair auditoria para core/audit_views.py.
+[x] Atualizar core/urls.py para usar trash_views e audit_views diretamente.
+[x] Manter aliases de lixeira e auditoria em core/views.py.
+[x] Validar lixeira/auditoria: 17 testes focados, 16 aprovados e 1 ignorado.
+[x] Validar suite completa apos extrair lixeira/auditoria: 81 testes aprovados, 1 ignorado.
+[x] Reduzir core/views.py a fachada final de compatibilidade.
+[x] Preservar aliases publicos das views especializadas e connection para compatibilidade de testes.
+[x] Remover implementacoes legadas duplicadas do core/views.py.
+[x] Validar core: 30 testes aprovados, 1 ignorado.
+[x] Validar suite completa apos a limpeza final do core/views.py: 81 testes aprovados, 1 ignorado.
+[x] Separar core/models.py em pacote core/models por responsabilidade.
+[x] Preservar imports publicos via core.models.
+[x] Mover signal de perfil para core/models/signals.py.
+[x] Validar models package: manage.py check aprovado.
+[x] Validar migrations: makemigrations --check --dry-run sem alteracoes.
+[x] Validar core apos separar models: 30 testes aprovados, 1 ignorado.
+[x] Validar suite completa apos separar models: 81 testes aprovados, 1 ignorado.
+[x] Extrair contar_notificacoes_pendentes para tramitacao/queries.py.
+[x] Extrair excluir_tramitacao_devolvida para tramitacao/dispatch.py.
+[x] Manter tramitacao/services.py como fachada de reexportacao.
+[x] Validar services reorganizado: 34 testes focados aprovados.
+[x] Validar suite completa apos reorganizar services: 81 testes aprovados, 1 ignorado.
+[x] Executar suite completa apos a separacao do core: 81 testes aprovados, 1 ignorado.
+[x] Executar testes de core apos a separacao: 30 testes aprovados, 1 ignorado.
+[x] Executar testes de tramitacao apos a separacao: suite focada e suite completa executadas com sucesso nesta etapa.
+[x] Executar suite completa apos a separacao: 81 testes descobertos; 1 ignorado; execucao atual sem falhas.
+
+5. SEPARACAO DO CORE
+[x] Extrair views de autenticacao para modulo de views dedicado.
+[x] Extrair views de navegacao e busca.
+[x] Extrair views de arquivos e uploads.
+[x] Extrair views de lixeira.
+[x] Extrair views de auditoria.
+[x] Manter fachada de compatibilidade enquanto houver referencias a core.views.
+[x] Avaliar divisao de core/models.py apos mapear migrations e imports.
+[ ] Nao remover Documento ou Prontuario sem confirmar uso no banco, admin e integracoes.
+
+6. SEPARACAO DA TRAMITACAO
+[x] Separar views HTTP por fluxo, mantendo URLs e nomes de rota.
+[x] Simplificar tramitacao/urls.py para referenciar views.api_historico_tramitacao e views.verificar_notificacoes sem imports redundantes.
+[x] Manter services.py como fachada durante a transicao.
+[x] Consolidar fronteiras entre dominio, aplicacao e infraestrutura somente quando reduzir acoplamento real.
+[x] Executar testes de tramitação a cada etapa.
+
+7. ESTATICOS E LIMPEZA
+[x] Definir static/ como fonte canonica dos assets compartilhados.
+[x] Nao tratar staticfiles como fonte.
+[x] Confirmar collectstatic em dry-run.
+[x] Remover duplicacoes somente apos confirmar hashes e referencias.
+[x] Nao remover venv local automaticamente.
+
+8. AUDITORIA FINAL
+[x] Verificar imports quebrados.
+[x] Verificar referencias a caminhos antigos.
+[x] Verificar rotas e nomes de URL.
+[x] Verificar templates, JavaScript e arquivos estaticos.
+[x] Verificar dependencias circulares.
+[x] Executar python manage.py check.
+[x] Executar suite completa de testes sem falhas E2E intermitentes.
+[!] Validar scripts operacionais no computador de producao com as raizes corretas.
+[x] Registrar arquivos movidos e removidos.
+[x] Registrar pendencias e riscos residuais.
+
+DECISOES E RISCOS
+- Nenhum arquivo foi removido nesta auditoria.
+- A pasta staticfiles parece ser saida de collectstatic, mas sua remocao depende do deploy.
+- A virtualenv e ambiente local e nao deve ser movida ou removida automaticamente.
+- Modelos Documento e Prontuario parecem pouco usados pelo fluxo atual, mas a remocao seria destrutiva sem verificacao adicional.
+- Os scripts de backup usam caminhos fixos D: e J: e nao incluem explicitamente db.sqlite3.
+- A documentacao docs/architecture.md descreve melhor o estado atual que ANALYSIS_REPORT.md.
+- Movimentos realizados em 2026-08-27: ANALYSIS_REPORT.md -> docs/archive/analysis-report-2026-08-25.md; COMANDOS POWERSHELL.txt -> docs/operations/commands.txt.
+- Separacao de tramitacao/tests.py em andamento: permanecem workflow, HTTP e Playwright no arquivo legado.
+- Separacao realizada em 2026-08-27: core/tests.py -> core/tests/ com test_authorization.py, test_security.py, test_uploads.py e test_password_change.py.
+- O teste core passou com 30 testes encontrados; 1 foi ignorado por indisponibilidade de link simbolico no ambiente.
+- A suite completa passou apos a separacao do core: 81 testes executados, 1 ignorado, sem falhas.
+- Ajuste realizado em 2026-08-27: tramitacao/urls.py deixou de importar funcoes diretamente de tramitacao.views; rotas preservadas.
+- Ajuste realizado em 2026-08-27: tramitacao/urls.py passou a apontar caixa de entrada e nova tramitação diretamente para inbox_views.py.
+- Ajuste realizado em 2026-08-27: inbox_views.py, action_views.py e api_views.py passaram a importar as implementacoes diretamente de seus modulos de dominio; services.py permanece como fachada externa.
+- Validacao da separacao HTTP direta: manage.py check e 43 testes focados de tramitacao passaram.
+- Validacao final desta etapa: 81 testes passaram, 1 foi ignorado e makemigrations --check --dry-run nao detectou alteracoes.
+- Nova etapa em 2026-08-27: helpers de destino foram movidos de views.py para destinations.py; aliases publicos foram preservados.
+- Validacao da extracao de destinos: manage.py check e 20 testes de workflow passaram.
+- Regressao completa apos a extracao de destinos: 1 falha intermitente no E2E de devolucao; repeticao isolada passou em 6.750s.
+- Estabilizacao E2E em 2026-08-27: os testes de devolucao e reenvio passaram a aguardar a persistencia do status; o teste de devolucao ainda apresentou uma falha conjunta isolada e passou novamente sozinho.
+- Nova etapa em 2026-08-27: forms.py foi reorganizado como pacote, separando os formularios de envio e resposta; tramitacao.forms preserva os nomes publicos.
+- Validacao da separacao de formularios: manage.py check e 26 testes focados de HTTP/workflow passaram.
+- Nova etapa em 2026-08-27: models.py foi reorganizado como pacote, separando workflow.py e attachments.py; tramitacao.models preserva os imports publicos.
+- Validacao da separacao de modelos: manage.py check, makemigrations --check --dry-run e 23 testes de workflow/operações passaram.
+- Nova etapa em 2026-08-27: downloads do ecarta foram extraidos para download_views.py; rotas e aliases publicos foram preservados.
+- Validacao dos downloads ecarta: dois endpoints autenticados retornaram 200 application/zip com os nomes esperados.
+- Nova etapa em 2026-08-27: criada suíte dedicada de ecarta para geração de lotes e downloads ZIP.
+- Validacao da suíte ecarta: 4 testes passaram em 1.039s.
+- Correcao em 2026-08-27: gerar_lote passou a validar a estrutura da planilha antes de criar ou incrementar ConfiguracaoEcarta.
+- Validacao da correcao e cobertura HTTP: 6 testes ecarta passaram.
+- Regressao completa em 2026-08-27: 1 falha E2E no fluxo combinado de assinatura/resposta; o teste passou isoladamente após aguardar status CONCLUIDO e despacho final.
+- Validacao posterior da tramitação: 51 testes passaram após a sincronização do fluxo combinado de assinatura/resposta.
+- Validacao integrada final em 2026-08-27: 108 testes passaram, 1 foi ignorado e nenhum E2E falhou na suite completa.
+- Nova etapa em 2026-08-27: ampliada a cobertura de file_validation para PNG, Office inválido e preservação do ponteiro de leitura.
+- Validacao da cobertura de uploads: 14 testes passaram, 1 foi ignorado por indisponibilidade de link simbólico.
+- Nova etapa em 2026-08-27: validação de nomes foi fortalecida para bloquear caracteres reservados, nomes vazios e finais em ponto/espaço no Windows.
+- Validacao do endurecimento de nomes: 17 testes focados passaram, 1 foi ignorado por indisponibilidade de link simbólico.
+- Nova etapa em 2026-08-27: criada cobertura dedicada das operações de filesystem, renomeação e lixeira.
+- Validacao das operações de filesystem: 4 testes passaram.
+- Nova etapa em 2026-08-27: movimentação e restauração de itens foram extraídas de trash_views.py para trash_services.py.
+- Validacao da extração da lixeira: manage.py check e 11 testes focados de filesystem/segurança passaram.
+- Nova etapa em 2026-08-27: exclusão múltipla e esvaziamento permanente foram extraídos para trash_services.py.
+- Validacao final da lixeira: 6 testes focados passaram; os fluxos de sucesso e auditoria foram cobertos.
+- Nova etapa em 2026-08-27: listagem, filtros e metadados da lixeira foram extraídos para trash_queries.py.
+- Validacao da extração de consultas da lixeira: 7 testes focados passaram.
+- Nova etapa em 2026-08-27: filtros e consulta dos logs foram extraídos para audit_queries.py.
+- Validacao da extração de auditoria: 3 testes focados passaram, incluindo a view administrativa.
+- Nova etapa em 2026-08-27: criação e validação de subpastas foram extraídas para storage_services.py.
+- Validacao da extração de storage: 9 testes focados passaram.
+- Nova etapa em 2026-08-27: validação e abertura de arquivos foram extraídas para file_delivery.py.
+- Validacao da extração de entrega de arquivos: 11 testes focados de filesystem passaram.
+- Nova etapa em 2026-08-27: navegação passou a validar pertencimento por fronteira de diretório normalizada, evitando falsos prefixos.
+- Validacao da fronteira de navegação: 12 testes focados de filesystem passaram.
+- Nova etapa em 2026-08-27: configuração de módulos e breadcrumbs foram extraídas para navigation_services.py.
+- Validacao da extração de navegação: 14 testes focados passaram.
+- Nova etapa em 2026-08-27: helpers puros de paginação e URL segura foram movidos das views para navigation_services.py e file_delivery.py; aliases de core.views foram preservados.
+- Validacao da limpeza das fachadas: check e testes de segurança passaram; os helpers especializados receberam cobertura direta.
+- Nova etapa em 2026-08-27: política de upload múltiplo permaneceu na view, com criação de subpastas e upload usando serviços dedicados; import obsoleto de os foi corrigido.
+- Validacao do storage: 16 testes focados passaram, incluindo upload múltiplo com resposta JSON.
+- Nova etapa em 2026-08-27: política de raízes bloqueadas do upload múltiplo foi extraída para storage_services.py, com comparação normalizada de caminhos.
+- Validacao da política de upload: 17 testes focados passaram.
+- Nova etapa em 2026-08-27: listagem em cache e busca de diretórios foram extraídas de file_services.py para file_queries.py; aliases públicos foram preservados.
+- Validacao da extração de consultas de filesystem: 24 testes focados passaram.
+- Nova etapa em 2026-08-27: implementação de salvar_upload_ged foi movida para storage_services.py; wrapper legado em file_services.py foi preservado.
+- Validacao da extração de persistência de uploads: 34 testes focados de uploads/filesystem passaram.
+- Validacao do ajuste: manage.py check passou; TramitacaoSecurityTests passou com 14 testes.
+- Limpeza de estaticos realizada em 2026-08-27: removidas 7 duplicatas binarias de core/static; static/ preservado como fonte e staticfiles/ preservado como saida gerada.
+- Arquivos removidos: core/static/core/img/icon-crfpb.png, logo-cff.png, logo-crfpb.png, logo-crfpb-branca.png, logo-implanta.png, logo-sagicon.png e core/static/js/bootstrap.bundle.min.js.
+- Validacao de estaticos: findstatic apontou somente static/; collectstatic dry-run sem saida; core passou com 30 testes, 1 ignorado.
+- Auditoria de backups realizada em 2026-08-27: D: e J: nao existem neste ambiente; scripts nao usam os caminhos do .env.example e nao copiam explicitamente db.sqlite3.
+- Nenhum script de backup foi movido ou alterado sem confirmar o Agendador de Tarefas e os caminhos reais de producao.
+- Ambiente registrado: este notebook e de correcao/desenvolvimento; as raizes corretas serao configuradas posteriormente no computador de producao.
+- Validacao da extracao de tramitacao: o teste focado passou; a suite do app teve um timeout E2E isolado, aprovado na repeticao imediata.
+- Separacao realizada em 2026-08-27: TramitacaoSecurityTests -> tramitacao/test_security.py; VencimentoCommandTests e TramitationAttachmentCleanupTests -> tramitacao/test_operations.py.
+- Apos as extracoes, a suite tramitacao passou com 51 testes em 78.673s.
+- Revalidacao conjunta em 2026-08-27: tramitacao.test_security e tramitacao.test_operations passaram com 17 testes.
+- Tentativa de workflow em 2026-08-27: modulo provisoriamente criado e aprovado com 20 testes, depois removido por ainda haver duplicacao com tramitacao/tests.py.
+- Extracao efetiva em 2026-08-27: TramitationWorkflowTests -> tramitacao/test_workflow.py; o legado foi tornado nao-descobrivel temporariamente para preservar os testes HTTP e Playwright.
+- Validacao da extracao efetiva: 20 testes do workflow e 51 testes da tramitação passaram sem duplicacao.
+- Validacao da separacao HTTP: 6 testes passaram; a suite tramitacao descobriu 51 testes apos a consolidacao.
+- Na suite completa, 1 timeout E2E ocorreu no fluxo combinado de assinatura/resposta; o mesmo teste passou isoladamente em 7.092s.
+- Extracao de API views validada em 2026-08-27: check Django aprovado e testes focados de seguranca/HTTP passaram (20 testes).
+- A suite geral permaneceu com 81 testes; houve um timeout E2E isolado na execucao conjunta, aprovado novamente isoladamente em 4.533s.
+- Validacao da extracao de inbox_views: suite geral encontrou 81 testes; 1 timeout E2E de navegacao ocorreu na execucao conjunta e passou isoladamente em 4.039s.
+- Extracao de action_views validada em 2026-08-27: suite completa passou com 81 testes, 1 ignorado, em 100.129s.
+- Limpeza da fachada validada em 2026-08-27: 43 testes de dominio/HTTP passaram; check Django aprovado.
+- A suite geral permaneceu com 81 testes; houve falha intermitente em E2E de persistencia do despacho, que passou em repeticao isolada (4.546s). Manter como pendencia de estabilidade do Playwright.
+- Roteamento auth validado em 2026-08-27: suite geral encontrou 81 testes; 2 E2E falharam por timing na execucao conjunta e passaram isoladamente (7.236s e 4.616s). Nenhum teste de autenticacao falhou.
+- Extracao de file_views validada em 2026-08-27: check Django aprovado; testes focados passaram; suite geral encontrou 81 testes com 1 falha E2E intermitente, aprovada isoladamente em 4.613s.
+- Extracao de storage_views validada em 2026-08-27: check Django aprovado; suite completa passou com 81 testes, 1 ignorado, em 115.760s.
+- Extracao de navigation_views validada em 2026-08-27: check Django aprovado; 17 testes focados passaram; suite geral encontrou 81 testes com 1 falha E2E intermitente, aprovada isoladamente em 5.272s.
+- Validacao posterior da suite tramitacao: 2 falhas E2E intermitentes no Playwright, uma em status PENDENTE/CONCLUIDO e outra em timeout do modal de edicao; requerem repeticao/diagnostico separado.
+- Diagnostico E2E concluido em 2026-08-27: os dois testes afetados passaram isoladamente (4.931s e 6.368s); manter como risco de interferencia/instabilidade da suite, sem alterar regra de negocio.
+- Auditoria final em 2026-08-27: imports, rotas, templates, estaticos e dependencias circulares verificados; check Django aprovado; migrations sem alteracoes.
+- Pendencia E2E: a suite completa teve 1 falha intermitente no fluxo de aguardar novo retorno; o teste passou isoladamente, mas deve ser estabilizado antes do aceite final.
+
+VALIDACOES DE BASE
+- manage.py check: PASSOU em 2026-08-27.
+- manage.py test --verbosity 1: PASSOU; 81 testes, 1 skipped, em 194.053s.
+- git e rg nao estavam disponiveis no PATH; a auditoria foi complementada com PowerShell.

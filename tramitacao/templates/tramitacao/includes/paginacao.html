@@ -1,0 +1,12 @@
+{% load pagination_tags %}
+{% if page_obj.has_other_pages %}
+<nav class="mt-4" aria-label="Navegação de páginas">
+    <ul class="pagination justify-content-center align-items-center shadow-sm p-2 bg-white rounded">
+        {% if page_obj.number > 10 %}<li class="page-item"><a class="page-link text-secondary" href="?{{ param_name }}={{ page_obj.number|add:-10 }}" title="Voltar 10 páginas"><i class="bi bi-chevron-double-left"></i> -10</a></li>{% endif %}
+        {% if page_obj.has_previous %}<li class="page-item"><a class="page-link" href="?{{ param_name }}={{ page_obj.previous_page_number }}" title="Anterior"><i class="bi bi-chevron-left"></i></a></li>{% else %}<li class="page-item disabled"><span class="page-link"><i class="bi bi-chevron-left"></i></span></li>{% endif %}
+        {% for p in page_obj|get_pagination_range %}{% if p == '...' %}<li class="page-item disabled"><span class="page-link">…</span></li>{% elif p == page_obj.number %}<li class="page-item active"><span class="page-link fw-bold">{{ p }}</span></li>{% else %}<li class="page-item"><a class="page-link" href="?{{ param_name }}={{ p }}">{{ p }}</a></li>{% endif %}{% endfor %}
+        {% if page_obj.has_next %}<li class="page-item"><a class="page-link" href="?{{ param_name }}={{ page_obj.next_page_number }}" title="Próximo"><i class="bi bi-chevron-right"></i></a></li>{% else %}<li class="page-item disabled"><span class="page-link"><i class="bi bi-chevron-right"></i></span></li>{% endif %}
+        {% with max_page=page_obj.paginator.num_pages %}{% if page_obj.number|add:10 <= max_page %}<li class="page-item"><a class="page-link text-secondary" href="?{{ param_name }}={{ page_obj.number|add:10 }}" title="Avançar 10 páginas">+10 <i class="bi bi-chevron-double-right"></i></a></li>{% endif %}{% endwith %}
+    </ul>
+</nav>
+{% endif %}

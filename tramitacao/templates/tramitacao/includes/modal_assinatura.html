@@ -1,0 +1,30 @@
+<!-- ========================================== -->
+<!-- Modal de Assinatura Eletrônica             -->
+<!-- ========================================== -->
+<div class="modal fade" id="modalAssinatura" tabindex="-1" aria-labelledby="modalAssinaturaLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <!-- ATENÇÃO: O ID abaixo é preenchido dinamicamente pelo JavaScript -->
+            <form id="formAssinaturaEletronica" method="POST">
+                {% csrf_token %}
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title" id="modalAssinaturaLabel"><i class="bi bi-shield-lock-fill"></i> Assinatura Eletrônica Obrigatória</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted small">
+                        Este documento exige assinatura eletrônica para ser concluído. Para confirmar sua autoria, digite sua senha de acesso ao sistema:
+                    </p>
+                    <div class="mb-3">
+                        <label for="senha_confirmacao" class="form-label fw-bold">Sua Senha Atual:</label>
+                        <input type="password" class="form-control" id="senha_confirmacao" name="senha_confirmacao" placeholder="Digite sua senha" required autocomplete="current-password">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-pen-fill"></i> Assinar e Concluir</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

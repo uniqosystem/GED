@@ -1,0 +1,109 @@
+<!-- ABA: CONCLUIDOS -->
+<div class="tab-content mt-3">
+    <div class="tab-pane fade" id="concluidos" role="tabpanel" aria-labelledby="concluidos-tab">
+        <div class="card shadow-sm border-0">
+            <div class="card-body bg-white p-3 rounded">
+                <h5 class="card-title text-success mb-3"><i class="bi bi-check-circle"></i> Tramitações Concluídas</h5>
+
+                {% if concluidos %}
+                    <div>
+                        <div class="table-responsive">
+                            <table id="aba-concluidos" class="table table-hover align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Protocolo / Título</th>
+                                        <th>Remetente Original</th>
+                                        <th>Setor Origem</th>
+                                        <th>Data</th>
+                                        <th class="text-center">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for t in concluidos %}
+                                        <tr>
+                                            <td>
+                                                <strong>{{ t.protocolo }}</strong><br>
+                                                <span class="text-muted small">{{ t.titulo }}</span>
+                                            </td>
+                                            <td>{{ t.remetente.get_full_name|default:t.remetente.username }}</td>
+                                            <td><span class="badge bg-secondary">{{ t.setor_origem.nome|default:t.setor_origem }}</span></td>
+                                            <td>{{ t.data_envio|date:"d/m/Y H:i" }}</td>
+                                            <td class="text-center">
+                                                <button type="button"
+                                                        class="btn btn-sm btn-outline-primary"
+                                                        data-bs-toggle="modal"
+                                                        data-bs-target="#modalDetalhesTramitacao"
+                                                        data-id="{{ t.id }}"
+                                                        data-protocolo="{{ t.protocolo }}"
+                                                        data-tipodoc="{{ t.tipo_documento }}"
+                                                        data-remetente="{{ t.remetente }}"
+                                                        data-setororigem="{{ t.setor_origem }}"
+                                                        data-dataenvio="{{ t.data_envio|date:'d/m/Y H:i' }}"
+                                                        data-despacho="{{ t.despacho }}"
+                                                        data-observacao="{{ t.observacao }}"
+                                                        data-status="{{ t.status }}"
+                                                        data-exige-assinatura="{{ t.exige_assinatura }}"
+                                                        data-assinado="{{ t.assinado }}"
+                                                        data-aguardar="{{ t.aguardar_resposta }}">
+                                                    <i class="bi bi-clock-history"></i> Histórico / Detalhes
+                                                </button>
+                                                <div class="mt-1">
+                                                    {% if t.exige_assinatura %}
+                                                        {% if t.assinado %}
+                                                            <span class="badge bg-success" title="Documento Assinado pelo Destinatário"><i class="bi bi-patch-check-fill"></i> Assinado</span>
+                                                        {% else %}
+                                                            <span class="badge bg-warning text-dark" title="Aguardando assinatura do destinatário"><i class="bi bi-hourglass-split"></i> Aguardando Assinatura</span>
+                                                        {% endif %}
+                                                    {% endif %}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    {% load pagination_tags %}
+                    {% with page_obj=concluidos param_name='page_conc' %}
+                    {% if page_obj.has_other_pages %}
+                    <nav class="mt-4" aria-label="Navegação de páginas">
+                        <ul class="pagination justify-content-center align-items-center shadow-sm p-2 bg-white rounded">
+                            {% if page_obj.number > 10 %}
+                                <li class="page-item"><a class="page-link text-secondary" href="?{{ param_name }}={{ page_obj.number|add:-10 }}" title="Voltar 10 páginas"><i class="bi bi-chevron-double-left"></i> -10</a></li>
+                            {% endif %}
+                            {% if page_obj.has_previous %}
+                                <li class="page-item"><a class="page-link" href="?{{ param_name }}={{ page_obj.previous_page_number }}" title="Anterior"><i class="bi bi-chevron-left"></i></a></li>
+                            {% else %}
+                                <li class="page-item disabled"><span class="page-link"><i class="bi bi-chevron-left"></i></span></li>
+                            {% endif %}
+                            {% for p in page_obj|get_pagination_range %}
+                                {% if p == '...' %}
+                                    <li class="page-item disabled"><span class="page-link">…</span></li>
+                                {% elif p == page_obj.number %}
+                                    <li class="page-item active"><span class="page-link fw-bold">{{ p }}</span></li>
+                                {% else %}
+                                    <li class="page-item"><a class="page-link" href="?{{ param_name }}={{ p }}">{{ p }}</a></li>
+                                {% endif %}
+                            {% endfor %}
+                            {% if page_obj.has_next %}
+                                <li class="page-item"><a class="page-link" href="?{{ param_name }}={{ page_obj.next_page_number }}" title="Próximo"><i class="bi bi-chevron-right"></i></a></li>
+                            {% else %}
+                                <li class="page-item disabled"><span class="page-link"><i class="bi bi-chevron-right"></i></span></li>
+                            {% endif %}
+                            {% with max_page=page_obj.paginator.num_pages %}
+                                {% if page_obj.number|add:10 <= max_page %}
+                                    <li class="page-item"><a class="page-link text-secondary" href="?{{ param_name }}={{ page_obj.number|add:10 }}" title="Avançar 10 páginas">+10 <i class="bi bi-chevron-double-right"></i></a></li>
+                                {% endif %}
+                            {% endwith %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+                    {% endwith %}
+                {% else %}
+                    <p class="text-muted mb-0">Nenhuma tramitação concluída encontrada.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
