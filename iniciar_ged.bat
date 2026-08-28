@@ -1,9 +1,9 @@
 @echo off
-:: Forçar a entrada na pasta do projeto
-cd /d C:\GED_CRFPB
+cd /d "%~dp0"
 
-:: Ativar a venv explicitamente
-call C:\GED_CRFPB\venv\Scripts\activate.bat
+if not exist "%~dp0venv\Scripts\python.exe" (
+	echo ERRO: a virtualenv nao foi encontrada em "%~dp0venv"
+	exit /b 1
+)
 
-:: Rodar o servidor apontando para todas as interfaces (0.0.0.0)
-python manage.py runserver 0.0.0.0:8000
+"%~dp0venv\Scripts\python.exe" -u "%~dp0run_server.py"

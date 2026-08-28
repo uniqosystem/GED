@@ -4,7 +4,7 @@ import time
 import unittest
 
 from django.contrib.auth.models import User
-from django.test import LiveServerTestCase
+from django.test import LiveServerTestCase, override_settings
 
 from core.models import Setor
 
@@ -20,6 +20,11 @@ if PLAYWRIGHT_AVAILABLE:
 @unittest.skipUnless(
     PLAYWRIGHT_AVAILABLE,
     'Playwright não está instalado; instale as dependências E2E para executar este teste.',
+)
+@override_settings(
+    SECURE_SSL_REDIRECT=False,
+    SESSION_COOKIE_SECURE=False,
+    CSRF_COOKIE_SECURE=False,
 )
 class TramitationBrowserTests(LiveServerTestCase):
     def setUp(self):
