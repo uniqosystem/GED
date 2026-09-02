@@ -3,14 +3,15 @@ import shutil
 import tempfile
 import urllib.parse
 
-from django.contrib.auth.models import User
+from django.contrib.auth.models import Group, User
 from django.conf import settings
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase, override_settings
 
-from core.models import LogAuditoria, RegistroLixeira
+from core.models import LogAuditoria, Perfil, RegistroLixeira, Setor
 from core.file_delivery import abrir_arquivo_autorizado, tipo_conteudo_arquivo
+from core.file_queries import listar_itens_diretorio
 from core.navigation_services import construir_breadcrumbs, obter_configuracao_modulo, por_pagina_seguro
 from core.rename_service import renomear_item
 from core.storage_services import criar_subpasta_ged, upload_multiplo_permitido
@@ -206,6 +207,30 @@ class FileSystemOperationTests(TestCase):
 		self.assertEqual(por_pagina_seguro('abc', 25), 25)
 		self.assertEqual(por_pagina_seguro('0', 25), 1)
 		self.assertEqual(por_pagina_seguro('10', 25), 10)
+
+	def test_raiz_de_setores_filtra_apenas_setor_autorizado(self):
+		grupo_ti = Group.objects.create(name='TI')
+		usuario = User.objects.create_user('usuario_setor', password='senha')
+		usuario.groups.add(grupo_ti)
+		usuario.perfil.setor = Setor.objects.create(nome='TI', caminho_rede='\\\\server\\ti')
+		usuario.perfil.save(update_fields=['setor'])
+		os.makedirs(os.path.join(settings.SETORES_BASE_DIR, 'TI'), exist_ok=True)
+		os.makedirs(os.path.join(settings.SETORES_BASE_DIR, 'Financeiro'), exist_ok=True)
+
+		itens = listar_itens_diretorio(settings.SETORES_BASE_DIR, 'setores-raiz', usuario)
+
+		self.assertEqual({item['nome'] for item in itens}, {'TI'})
+
+	def test_cache_key_accepts_user_with_setor(self):
+		usuario = User.objects.create_user(username='setor-profile-user')
+		setor = Setor.objects.create(nome='Financeiro', caminho_rede='C:\\Financeiro')
+		perfil = Perfil.objects.get(user=usuario)
+		perfil.setor = setor
+		perfil.save(update_fields=['setor'])
+
+		itens = listar_itens_diretorio(settings.SETORES_BASE_DIR, 'setores-raiz', usuario)
+
+		self.assertEqual(itens, [])
 
 	def test_upload_multiplo_salva_arquivo_e_retorna_json(self):
 		self.usuario.perfil.password_changed = True

@@ -1,0 +1,22 @@
+{% extends 'core/base.html' %}
+{% block conteudo %}
+    {% include 'ponto/_cabecalho_usuario.html' with titulo_ponto='Presença Hoje' %}
+    <div class="container mt-4">
+        <h3>Presença em Tempo Real - {{ data_hoje|date:"d/m/Y" }}</h3>
+        <hr>
+        
+        <div class="card mt-3">
+            <div class="card-header bg-success text-white">Funcionários presentes hoje</div>
+            <ul class="list-group list-group-flush">
+                {% for p in presencas %}
+                    <li class="list-group-item d-flex justify-content-between">
+                        {{ p.usuario.username }}
+                        <span class="badge bg-primary">{{ p.data_hora|time:"H:i" }}</span>
+                    </li>
+                {% empty %}
+                    <li class="list-group-item">Nenhum registro de entrada encontrado até o momento.</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+{% endblock conteudo %}

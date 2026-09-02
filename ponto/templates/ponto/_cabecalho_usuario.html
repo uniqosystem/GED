@@ -1,0 +1,7 @@
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">{{ titulo_ponto|default:"Ponto" }}</h1>
+    <div>
+        <span class="badge bg-primary fs-6">Usuário: {{ request.user.get_full_name|default:request.user.username }}</span>
+        <span class="badge bg-secondary fs-6 me-2">Setor: {{ setor_usuario.nome|default:"Sem Setor" }}</span>
+    </div>
+</div>

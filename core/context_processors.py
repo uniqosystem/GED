@@ -1,3 +1,8 @@
+from django.conf import settings
+
+from ponto.permissions import is_ponto_rh
+
+
 def usuario_setor(request):
     if request.user.is_authenticated:
         # Tenta buscar o setor do usuário pelo perfil ou atributo direto
@@ -7,6 +12,20 @@ def usuario_setor(request):
             setor = perfil.setor
         elif hasattr(request.user, 'setor'):
             setor = request.user.setor
-            
-        return {'setor_usuario': setor}
-    return {'setor_usuario': None}
+
+        grupos_pf_pj = set(getattr(settings, 'GED_PF_GROUPS', [])) | set(getattr(settings, 'GED_PJ_GROUPS', []))
+        grupos_setores_menu = [
+            grupo for grupo in request.user.groups.all()
+            if grupo.name not in grupos_pf_pj
+        ]
+
+        return {
+            'setor_usuario': setor,
+            'grupos_setores_menu': grupos_setores_menu,
+            'pode_gerenciar_ponto': is_ponto_rh(request.user),
+        }
+    return {
+        'setor_usuario': None,
+        'grupos_setores_menu': [],
+        'pode_gerenciar_ponto': False,
+    }

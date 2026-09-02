@@ -1,0 +1,84 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block conteudo %}
+    {% include 'ponto/_cabecalho_usuario.html' with titulo_ponto='Registro de Ponto' %}
+    <div class="container text-center mt-3">
+        {% for message in messages %}
+            {# Só exibe se a tag NÃO for 'admin' #}
+            {% if 'admin' not in message.tags %}
+                <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">
+                    {{ message }}
+                </div>
+            {% endif %}
+        {% endfor %}
+        
+        <div id="status" class="alert alert-info">Aguardando localização GPS...</div>
+
+        <form method="POST" id="pontoForm">
+            {% csrf_token %}
+            <input type="hidden" name="latitude" id="lat">
+            <input type="hidden" name="longitude" id="lon">
+            <input type="hidden" name="tipo" id="hiddenTipo">
+            
+            <div class="d-grid gap-2">
+                <button name="tipo" value="ENTRADA" class="btn btn-primary btn-lg btn-ponto" disabled>Entrada</button>
+                <button name="tipo" value="ALMOCO_SAIDA" class="btn btn-warning btn-lg btn-ponto" disabled>Saída Almoço</button>
+                <button name="tipo" value="ALMOCO_RETORNO" class="btn btn-warning btn-lg btn-ponto" disabled>Volta Almoço</button>
+                <button name="tipo" value="SAIDA" class="btn btn-danger btn-lg btn-ponto" disabled>Saída Final</button>
+            </div>
+        </form>
+        
+        {% if pode_gerenciar_ponto %}
+            <div class="mt-4">
+                <a href="{% url 'pagina_relatorio' %}" class="btn btn-success">Relatórios do Ponto</a>
+            </div>
+        {% endif %}
+    </div>
+
+    <script>
+        // geolocalização
+        const statusDiv = document.getElementById('status');
+        const botoes = document.querySelectorAll('.btn-ponto');
+
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(pos => {
+                document.getElementById('lat').value = pos.coords.latitude;
+                document.getElementById('lon').value = pos.coords.longitude;
+                
+                // Habilita os botões e muda o status
+                statusDiv.className = 'alert alert-success';
+                statusDiv.innerText = 'Localização confirmada! Pode registrar.';
+                botoes.forEach(btn => btn.disabled = false);
+            }, err => {
+                statusDiv.className = 'alert alert-danger';
+                statusDiv.innerText = 'Erro ao capturar localização. Verifique o GPS.';
+            });
+        } else {
+            statusDiv.innerText = 'Geolocalização não suportada pelo navegador.';
+        }
+
+        // evitar double click
+        const form = document.getElementById('pontoForm');
+
+        // Adiciona evento de clique em todos os botões do formulário
+        botoes.forEach(btn => {
+            btn.addEventListener('click', function(event) {
+                // Previne o comportamento padrão do botão para não enviar duas vezes
+                event.preventDefault(); 
+                
+                // Pega o valor do botão clicado e coloca no input hidden
+                document.getElementById('hiddenTipo').value = this.value;
+                
+                // Desabilita todos os botões
+                botoes.forEach(b => b.disabled = true);
+                
+                // Muda o texto do botão clicado
+                this.innerText = 'Registrando...';
+                
+                // Submete o formulário
+                form.submit();
+            });
+        });
+    </script>
+{% endblock conteudo %}

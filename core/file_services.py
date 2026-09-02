@@ -2,6 +2,7 @@
 
 import os
 import re
+import unicodedata
 
 from django.conf import settings
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -36,7 +37,11 @@ def validar_caminho_seguro(caminho_solicitado, verificar_existencia=True):
 
 
 def _normalizar_nome_setor(nome):
-    return re.sub(r'\s+', ' ', str(nome).strip()).casefold()
+    valor = unicodedata.normalize('NFKD', str(nome).strip())
+    valor = ''.join(char for char in valor if not unicodedata.combining(char))
+    valor = valor.casefold()
+    valor = re.sub(r'[^a-z0-9]+', '', valor)
+    return valor
 
 
 def _caminho_esta_em(caminho, raiz):

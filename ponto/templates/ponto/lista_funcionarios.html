@@ -1,0 +1,106 @@
+{% extends 'core/base.html' %}
+
+{% block conteudo %}
+    {% include 'ponto/_cabecalho_usuario.html' with titulo_ponto='Gestão de Funcionários' %}
+<div class="container py-4">
+    <h2 class="mb-4">Gestão de Funcionários</h2>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-success alert-dismissible fade show shadow-sm">{{ message }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="card shadow-sm border-0">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-dark">
+                <tr>
+                    <th>Usuário</th>
+                    <th>Nome Completo</th>
+                    <th>Jornada</th>
+                    <th class="text-center">Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for func in funcionarios %}
+                <tr>
+                    <td class="fw-bold">{{ func.user.username }}</td>
+                    <td>{{ func.user.first_name }} {{ func.user.last_name }}</td>
+                    <td>
+                        <span class="badge bg-secondary">
+                            {{ func.horario_entrada|time:"H:i" }} - {{ func.horario_saida|time:"H:i" }}
+                        </span>
+                    </td>
+                    <td class="text-center">
+                        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modal-{{ func.id }}">Editar</button>
+                        
+                        <div class="btn-group">
+                            <button class="btn btn-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown">Contracheques</button>
+                            <ul class="dropdown-menu dropdown-menu-end shadow">
+                                <li class="dropdown-header">Apagar Contracheques</li>
+                                {% for c in func.user.contracheque_set.all %}
+                                <li class="d-flex justify-content-between px-3 py-1">
+                                    <span>{{ c.mes }}/{{ c.ano }}</span>
+                                    <form action="{% url 'excluir_contracheque' c.id %}" method="POST" class="ms-2">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-danger btn-sm py-0">X</button>
+                                    </form>
+                                </li>
+                                {% empty %}
+                                <li class="px-3 text-muted small">Nenhum enviado.</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </td>
+                </tr>
+
+                <div class="modal fade" id="modal-{{ func.id }}" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Editar: {{ func.user.username }}</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            
+                            <div class="modal-body">
+                                <ul class="nav nav-tabs mb-3">
+                                    <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-dados{{ func.id }}">Dados</button></li>
+                                    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-upload{{ func.id }}">Upload</button></li>
+                                </ul>
+
+                                <div class="tab-content">
+                                    <div class="tab-pane fade show active" id="tab-dados{{ func.id }}">
+                                        <form method="post" action="{% url 'editar_funcionario_rh' func.user.id %}">
+                                            {% csrf_token %}
+                                            <div class="mb-2"><label>Nome</label><input type="text" name="first_name" class="form-control" value="{{ func.user.first_name }}"></div>
+                                            <div class="mb-2"><label>Sobrenome</label><input type="text" name="last_name" class="form-control" value="{{ func.user.last_name }}"></div>
+                                            <div class="mb-2"><label>CPF</label><input type="text" name="cpf" class="form-control" value="{{ func.cpf|default:'' }}"></div>
+                                            <div class="row">
+                                                <div class="col-6"><label>Entrada</label><input type="time" name="horario_entrada" class="form-control" value="{{ func.horario_entrada|time:'H:i' }}"></div>
+                                                <div class="col-6"><label>Saída</label><input type="time" name="horario_saida" class="form-control" value="{{ func.horario_saida|time:'H:i' }}"></div>
+                                            </div>
+                                            <button type="submit" class="btn btn-success mt-3 w-100">Salvar Alterações</button>
+                                        </form>
+                                    </div>
+
+                                    <div class="tab-pane fade" id="tab-upload{{ func.id }}">
+                                        <form method="POST" action="{% url 'upload_contracheque' %}" enctype="multipart/form-data">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="user_id" value="{{ func.user.id }}">
+                                            <div class="mb-2"><label>Mês</label><input type="number" name="mes" class="form-control" required></div>
+                                            <div class="mb-2"><label>Ano</label><input type="number" name="ano" class="form-control" required></div>
+                                            <div class="mb-2"><label>Arquivo</label><input type="file" name="arquivo" class="form-control" required></div>
+                                            <button type="submit" class="btn btn-primary w-100">Confirmar Upload</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock conteudo %}

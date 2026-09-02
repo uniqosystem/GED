@@ -48,8 +48,14 @@ GED_BASE_DIR = os.getenv('GED_BASE_DIR', r'C:\TESTE\GED')
 SETORES_BASE_DIR = os.getenv('SETORES_BASE_DIR', r'C:\TESTE\SETORES')
 LIXEIRA_DIR = os.getenv('LIXEIRA_DIR', r'C:\TESTE\GED_LIXEIRA')
 TRAMITACAO_DIR = os.getenv('TRAMITACAO_DIR', r'C:\TESTE\TRAMITACAO')
+PONTO_DIR = os.getenv('PONTO_DIR', r'D:\PONTO')
+os.makedirs(PONTO_DIR, exist_ok=True)
 GED_PF_GROUPS = env_list('GED_PF_GROUPS', 'GED_PESSOA_FISICA')
 GED_PJ_GROUPS = env_list('GED_PJ_GROUPS', 'GED_PESSOA_JURIDICA')
+PONTO_RH_GROUPS = env_list(
+    'PONTO_RH_GROUPS',
+    'DEPARTAMENTO PESSOAL,DP,ADMINISTRATIVO,ADM',
+)
 UPLOAD_MAX_SIZE = int(os.getenv('UPLOAD_MAX_SIZE', str(20 * 1024 * 1024)))
 UPLOAD_ALLOWED_EXTENSIONS = env_list(
     'UPLOAD_ALLOWED_EXTENSIONS',
@@ -93,6 +99,7 @@ INSTALLED_APPS = [
     'core',
     'tramitacao',
     'ecarta',
+    'ponto',
 ]
 
 MIDDLEWARE = [
@@ -197,10 +204,17 @@ LOGGING = {
             'class': 'logging.StreamHandler',
             'formatter': 'verbose',
         },
+        'ponto_file': {
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(PONTO_DIR, 'ponto.log'),
+            'encoding': 'utf-8',
+            'formatter': 'verbose',
+        },
     },
     'loggers': {
         'core': {'handlers': ['console'], 'level': 'INFO', 'propagate': False},
         'tramitacao': {'handlers': ['console'], 'level': 'INFO', 'propagate': False},
         'ecarta': {'handlers': ['console'], 'level': 'INFO', 'propagate': False},
+        'ponto': {'handlers': ['console', 'ponto_file'], 'level': 'INFO', 'propagate': False},
     },
 }

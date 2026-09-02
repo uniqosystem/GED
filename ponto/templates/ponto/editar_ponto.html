@@ -1,0 +1,14 @@
+{% extends 'core/base.html' %}
+{% block conteudo %}
+    {% include 'ponto/_cabecalho_usuario.html' with titulo_ponto='Editar Registro de Ponto' %}
+    <div class="container mt-4">
+        <h3>Corrigir Registro de Ponto</h3>
+        <hr>
+        <form method="POST">
+            {% csrf_token %}
+            {{ form.as_p }}
+            <button type="submit" class="btn btn-primary">Salvar Alterações</button>
+            <a href="{% url 'painel_rh' %}" class="btn btn-secondary">Cancelar</a>
+        </form>
+    </div>
+{% endblock conteudo %}

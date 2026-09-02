@@ -1,0 +1,92 @@
+{% extends 'core/base.html' %}
+
+{% block conteudo %}
+    {% include 'ponto/_cabecalho_usuario.html' with titulo_ponto='Painel Administrativo - RH' %}
+    <div class="container mt-4">
+        <h2>Painel Administrativo - RH</h2>
+
+        <hr>
+
+        {% for message in messages %}
+            {% if 'apagarponto' in message.tags %}
+                <div class="alert alert-success"> {{ message }} </div>
+            {% endif %}
+        {% endfor %}
+
+        </br>
+
+        <form action="{% url 'exportar_ponto' %}" method="GET" class="row g-3 align-items-end mb-4 p-3 border rounded">
+            <div class="col-auto">
+                <label class="form-label">Funcionário:</label>
+                <select name="nome" class="form-select">
+                    <option value="">Todos</option>
+                    {% for user in usuarios %}
+                        <option value="{{ user.username }}">{{ user.username }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-auto">
+                <label class="form-label">Data Início:</label>
+                <input type="date" name="data_inicio" class="form-control" required>
+            </div>
+            <div class="col-auto">
+                <label class="form-label">Data Fim:</label>
+                <input type="date" name="data_fim" class="form-control" required>
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-success">Baixar Relatório (Excel)</button>
+            </div>
+        </form>
+        
+        <form method="GET" class="mb-3">
+            <input type="text" name="nome" placeholder="Buscar funcionário..." class="form-control" value="{{ request.GET.nome }}">
+            <button type="submit" class="btn btn-primary mt-2">Buscar</button>
+        </form>
+
+        <table class="table table-bordered">
+            <thead class="table-dark">
+                <tr>
+                    <th>Funcionário</th>
+                    <th>Data/Hora</th>
+                    <th>Tipo</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in registros %}
+                    <tr>
+                        <td>{{ r.usuario.username }}</td>
+                        <td>{{ r.data_hora|date:"d/m/Y H:i" }}</td>
+                        <td>{{ r.get_tipo_display }}</td>
+                        <td>
+                            <a href="{% url 'editar_ponto' r.id %}" class="btn btn-sm btn-warning">Editar</a>
+
+                            <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ r.id }}">
+                                Apagar
+                            </button>
+                        </td>
+                    </tr>
+
+                    <!-- Modal único para este registro -->
+                    <div class="modal fade" id="deleteModal{{ r.id }}" tabindex="-1" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Confirmar exclusão</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    Deseja realmente apagar o registro de <strong>{{ r.usuario.username }}</strong> em {{ r.data_hora|date:"d/m/Y H:i" }}?
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                    <a href="{% url 'apagar_ponto' r.id %}" class="btn btn-danger">Confirmar Apagar</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endblock conteudo %}

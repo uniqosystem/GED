@@ -8,10 +8,10 @@ Este notebook e um ambiente de correcao e desenvolvimento. As raizes corretas do
 
 Eles usam estes caminhos fixos:
 
-- origem: `D:\SETORES`, `D:\GED` e `D:\GED_LIXEIRA`;
-- destino diario: `J:\SETORES`, `J:\GED` e `J:\GED_LIXEIRA`;
+- origem: `D:\SETORES`, `D:\GED`, `D:\GED_LIXEIRA`, `D:\TRAMITACAO` e `D:\PONTO`;
+- destino diario: `J:\SETORES`, `J:\GED`, `J:\GED_LIXEIRA`, `J:\TRAMITACAO` e `J:\PONTO`;
 - destino mensal: `J:\Backup_Mensal\AAAA-MM\...`;
-- logs: `J:\Logs\...`.
+- logs: `J:\Logs\...` (incluindo `ponto.log` dentro do backup de `D:\PONTO`).
 
 Esses caminhos sao diferentes dos defaults de desenvolvimento em `.env.example` e nao existem no ambiente auditado. Eles devem ser tratados como configuracao do servidor, nao como caminhos portaveis da aplicacao.
 

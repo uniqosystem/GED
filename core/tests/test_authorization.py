@@ -41,6 +41,19 @@ class GedAuthorizationTests(TestCase):
 			self.usuario, os.path.join(settings.GED_BASE_DIR, 'PESSOA FISICA', '08360')
 		))
 
+	def test_grupo_e_setor_com_pontos_sao_equivalentes_ao_nome_da_pasta(self):
+		grupo_ti = Group.objects.create(name='T.I')
+		self.usuario.groups.add(grupo_ti)
+		self.usuario.perfil.setor = self.setor
+		self.usuario.perfil.save(update_fields=['setor'])
+
+		self.assertTrue(usuario_pode_acessar_caminho(
+			self.usuario, os.path.join(settings.SETORES_BASE_DIR, 'TI', 'arquivo.pdf')
+		))
+		self.assertFalse(usuario_pode_acessar_caminho(
+			self.usuario, os.path.join(settings.SETORES_BASE_DIR, 'Financeiro', 'arquivo.pdf')
+		))
+
 	def test_comando_provisiona_grupos_e_atribui_usuario(self):
 		management.call_command('configurar_grupos_ged', pf_users=self.usuario.username, verbosity=0)
 		self.usuario.refresh_from_db()

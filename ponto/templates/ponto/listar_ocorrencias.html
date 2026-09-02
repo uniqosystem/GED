@@ -1,0 +1,111 @@
+{% extends 'core/base.html' %}
+{% block conteudo %}
+    {% include 'ponto/_cabecalho_usuario.html' with titulo_ponto='Afastamentos e Atestados' %}
+    <div class="container mt-4">
+        <h3>Gestão de Afastamentos</h3>
+        <hr>
+
+        {% for message in messages %}
+            {% if 'ocorrencia' in message.tags %}
+                <div class="alert alert-success"> {{ message }} </div>
+            {% endif %}
+
+            {% if 'apagarocorrencia' in message.tags %}
+                <div class="alert alert-success"> {{ message }} </div>
+            {% endif %}
+        {% endfor %}
+        
+        <table class="table table-hover">
+            <thead class="table-dark">
+                <tr>
+                    <th>Funcionário</th>
+                    <th>Tipo</th>
+                    <th>Período</th>
+                    <th>Observação</th>
+                    <th>Anexo</th> 
+                    <th>Ações</th> 
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for o, form_editar in lista_com_forms %}
+                <tr>
+                    <td>{{ o.usuario.username }}</td>
+                    <td>{{ o.get_tipo_display }}</td>
+                    <td>{{ o.data_inicio|date:"d/m/Y" }} a {{ o.data_fim|date:"d/m/Y" }}</td>
+                    <td>{{ o.observacao }}</td>
+                    <td>
+                        {% if o.anexo %}
+                            <a href="{{ o.anexo.url }}" target="_blank" title="Ver Anexo">
+                                <i class="bi bi-file-earmark-pdf-fill" style="font-size: 1.5rem; color: #dc3545;"></i>
+                            </a>
+                        {% else %}
+                            <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <!-- Botão de Editar -->
+                        <button type="button" class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#modalEditar{{ o.id }}">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        
+                        <!-- Botão Apagar -->
+                        <a href="{% url 'apagar_ocorrencia' o.id %}" class="btn btn-sm btn-danger" onclick="return confirm('Tem certeza que deseja apagar?')">
+                            <i class="bi bi-trash"></i>
+                        </a>
+                    </td>
+                </tr>
+
+                <!-- Modal de Edição específico para este registro -->
+                        <div class="modal fade" id="modalEditar{{ o.id }}" tabindex="-1" aria-hidden="true">
+                            <div class="modal-dialog">
+                                <div class="modal-content">
+                                    <form method="post" action="{% url 'editar_ocorrencia' o.id %}" enctype="multipart/form-data">
+                                        {% csrf_token %}
+                                        <div class="modal-header">
+                                            <h5 class="modal-title">Editar Ocorrência</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <!-- O formulário virá preenchido pela view -->
+                                            {{ form_editar.as_p }} 
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="submit" class="btn btn-primary">Salvar Alterações</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- Botão para abrir o Modal -->
+        <button type="button" class="btn btn-primary mb-3" data-bs-toggle="modal" data-bs-target="#modalOcorrencia">
+            + Nova Ocorrência
+        </button>
+
+        <!-- Modal -->
+        <div class="modal fade" id="modalOcorrencia" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <form method="post" enctype="multipart/form-data"> <!-- enctype é obrigatório para arquivos -->
+                        {% csrf_token %}
+                        <div class="modal-header">
+                            <h5 class="modal-title">Registrar Nova Ocorrência</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            {{ form.as_p }}
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                            <button type="submit" class="btn btn-primary">Salvar Ocorrência</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock conteudo %}

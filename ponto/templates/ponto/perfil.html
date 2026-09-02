@@ -1,0 +1,55 @@
+{% extends 'core/base.html' %}
+
+{% block conteudo %}
+    {% include 'ponto/_cabecalho_usuario.html' with titulo_ponto='Meu Perfil' %}
+    <div class="container mt-4">
+        <div class="card" style="max-width: 500px;">
+            <div class="card-header bg-primary text-white">
+                <h3 class="card-title mb-0">Meu Perfil</h3>
+            </div>
+            <div class="card-body">
+                <p><strong>Nome:</strong> {{ user.first_name }} {{ user.last_name }}</p>
+                <p><strong>E-mail:</strong> {{ user.email }}</p>
+                <p><strong>CPF:</strong> {{ perfil.cpf }}</p>
+                <p><strong>Status:</strong> {{ perfil.status|default:"-" }}</p>
+                <p><strong>Jornada:</strong> 
+                    {{ perfil.horario_entrada|time:"H:i" }} às {{ perfil.horario_saida|time:"H:i" }}
+                </p>
+
+                <hr>
+                <a href="{% url 'change_password' %}" class="btn btn-warning">Alterar Senha</a>
+            </div>
+        </div>
+
+    </br> 
+
+        <div class="card" style="max-width: 500px;">
+            <div class="card-header bg-primary text-white">
+                <h3 class="card-title mb-0">Meus Contracheques</h3>
+            </div>
+            <div class="card-body">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Mês/Ano</th>
+                            <th>Ação</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for c in contracheques %}
+                        <tr>
+                            <td>{{ c.mes }}/{{ c.ano }}</td>
+                            <td>
+                                <a href="{{ c.arquivo.url }}" target="_blank" class="btn btn-sm btn-info">Ver</a>
+                                <a href="{{ c.arquivo.url }}" class="btn btn-sm btn-primary" download>Baixar</a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="2">Nenhum contracheque disponível.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+{% endblock conteudo %}

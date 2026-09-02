@@ -7,14 +7,32 @@ from django.core.cache import cache
 from .file_services import usuario_pode_acessar_caminho
 
 
+def _chave_cache_diretorio(caminho, usuario, data_modificacao):
+    chave_base = hashlib.sha256(os.path.abspath(caminho).encode()).hexdigest()
+    if getattr(usuario, 'is_authenticated', False):
+        nomes_permissoes = {
+            str(grupo.name).lower().strip() for grupo in usuario.groups.all()
+        }
+        perfil = getattr(usuario, 'perfil', None)
+        if perfil and perfil.setor:
+            nomes_permissoes.add(str(perfil.setor.nome).lower().strip())
+        nomes_permissoes = sorted(nomes_permissoes)
+        identidade = hashlib.sha256(
+            ('|'.join(nomes_permissoes) or 'sem-grupos').encode('utf-8')
+        ).hexdigest()
+        identidade = f"u{usuario.pk}:{identidade}"
+    else:
+        identidade = 'anon'
+    return f'ged:diretorio:{chave_base}:{data_modificacao}:{identidade}'
+
+
 def listar_itens_diretorio(caminho, modulo, usuario):
     try:
         data_modificacao = os.stat(caminho).st_mtime_ns
     except OSError:
         return []
 
-    chave_base = hashlib.sha256(os.path.abspath(caminho).encode()).hexdigest()
-    chave_cache = f'ged:diretorio:{chave_base}:{data_modificacao}'
+    chave_cache = _chave_cache_diretorio(caminho, usuario, data_modificacao)
     itens = cache.get(chave_cache)
     if itens is None:
         itens = []
@@ -29,7 +47,7 @@ def listar_itens_diretorio(caminho, modulo, usuario):
                     itens.append({'nome': entrada.name, 'tipo': 'arquivo', 'tamanho': f'{tamanho} KB', 'caminho': entrada.path, 'ordem': 1})
         cache.set(chave_cache, itens, timeout=300)
 
-    if modulo != 'setores':
+    if modulo not in {'setores', 'setores-raiz'}:
         return list(itens)
     return [item for item in itens if usuario_pode_acessar_caminho(usuario, item['caminho'])]
 
