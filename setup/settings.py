@@ -64,6 +64,13 @@ UPLOAD_ALLOWED_EXTENSIONS = env_list(
     '.pdf,.doc,.docx,.xls,.xlsx,.csv,.png,.jpg,.jpeg,.gif,.txt',
 )
 
+# Seed do administrador no deploy (python manage.py seed_admin / run_server.py).
+# Só cria o usuário quando USERNAME e PASSWORD estiverem definidos.
+ADMIN_SEED_USERNAME = os.getenv('ADMIN_SEED_USERNAME', '').strip()
+ADMIN_SEED_EMAIL = os.getenv('ADMIN_SEED_EMAIL', '').strip()
+ADMIN_SEED_PASSWORD = os.getenv('ADMIN_SEED_PASSWORD', '')
+ADMIN_SEED_RESET_PASSWORD = env_bool('ADMIN_SEED_RESET_PASSWORD', default=False)
+
 MEDIA_URL = '/media/'
 MEDIA_ROOT = TRAMITACAO_DIR
 

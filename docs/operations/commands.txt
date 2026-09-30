@@ -1,6 +1,7 @@
 COMANDOS POWERSHELL
 
 python manage.py createsuperuser (CRIAR SUPER USUÁRIO / ADMIN)
+python manage.py seed_admin (CRIAR/GARANTIR ADMIN A PARTIR DE ADMIN_SEED_* NO .env; roda também no run_server.py)
 
 python manage.py makemigrations
 python manage.py migrate (MIGRAR OS MODELS)
