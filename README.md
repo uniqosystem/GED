@@ -39,6 +39,8 @@ GED_BASE_DIR=C:\GED
 SETORES_BASE_DIR=C:\SETORES
 LIXEIRA_DIR=C:\GED_LIXEIRA
 TRAMITACAO_DIR=C:\TRAMITACAO
+EVENTOS_DIR=D:\EVENTOS
+ECARTA_DIR=D:\ECARTA
 ```
 
 Os caminhos devem existir e ter as permissoes necessarias para o processo do servidor. Nunca publique `.env`, credenciais ou o banco local.

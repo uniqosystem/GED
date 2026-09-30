@@ -3,7 +3,7 @@ from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from .download_views import baixar_resposta, baixar_servico
-from .services import CONTRATO_FIXO, gerar_lote
+from .services import CONTRATO_FIXO, gerar_lote, persistir_lote
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +18,7 @@ def gerar_ecarta(request):
 
         try:
             lote = gerar_lote(arquivo_enviado)
+            persistir_lote(lote, request.user)
 
             # Salva na sessão para permitir o download imediato nos botões
             request.session['ecarta_servico'] = lote['conteudo_servico']

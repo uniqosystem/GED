@@ -7,6 +7,8 @@ robocopy "D:\SETORES" "J:\Backup_Mensal\%data%\SETORES" /E /R:3 /W:5 /NP /LOG:"J
 robocopy "D:\GED" "J:\Backup_Mensal\%data%\GED" /E /R:3 /W:5 /NP /LOG:"J:\Logs\log_mensal_ged_%data%.txt"
 robocopy "D:\GED_LIXEIRA" "J:\Backup_Mensal\%data%\GED_LIXEIRA" /E /R:3 /W:5 /NP /LOG:"J:\Logs\log_mensal_lixeira_%data%.txt"
 robocopy "D:\TRAMITACAO" "J:\Backup_Mensal\%data%\TRAMITACAO" /E /R:3 /W:5 /NP /LOG:"J:\Logs\log_mensal_tramitacao_%data%.txt"
+robocopy "D:\EVENTOS" "J:\Backup_Mensal\%data%\EVENTOS" /E /R:3 /W:5 /NP /LOG:"J:\Logs\log_mensal_eventos_%data%.txt"
+robocopy "D:\ECARTA" "J:\Backup_Mensal\%data%\ECARTA" /E /R:3 /W:5 /NP /LOG:"J:\Logs\log_mensal_ecarta_%data%.txt"
 robocopy "D:\PONTO" "J:\Backup_Mensal\%data%\PONTO" /E /R:3 /W:5 /NP /LOG:"J:\Logs\log_mensal_ponto_%data%.txt"
 
 if not exist "J:\Backup_Mensal\%data%\GED" mkdir "J:\Backup_Mensal\%data%\GED"

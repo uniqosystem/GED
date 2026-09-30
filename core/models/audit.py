@@ -16,6 +16,15 @@ class LogAuditoria(models.Model):
         ('CONCLUIR_TRAMITACAO', 'Conclusão'),
         ('ARQUIVAR_TRAMITACAO', 'Arquivamento'),
         ('EXCLUIR_TRAMITACAO', 'Exclusão de Tramitação'),
+        ('CRIAR_EVENTO', 'Criação de Evento'),
+        ('EDITAR_EVENTO', 'Edição de Evento'),
+        ('INSCRICAO_EVENTO', 'Inscrição em Evento'),
+        ('CONFIRMAR_PRESENCA_EVENTO', 'Confirmação de Presença em Evento'),
+        ('GERAR_CERTIFICADO_EVENTO', 'Geração de Certificado de Evento'),
+        ('ENVIAR_CERTIFICADO_EVENTO', 'Envio de Certificado de Evento'),
+        ('GERAR_ECARTA', 'Geração de lote e-Carta'),
+        ('BAIXAR_ECARTA_SERVICO', 'Download do arquivo de serviço e-Carta'),
+        ('BAIXAR_ECARTA_RESPOSTA', 'Download do arquivo de resposta e-Carta'),
     ]
 
     usuario = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, db_index=True)

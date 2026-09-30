@@ -76,6 +76,19 @@ class Tramitacao(models.Model):
         return f"Protocolo: {self.protocolo} - {self.tipo_documento}"
 
 
+class AssinaturaTramitacao(models.Model):
+    tramitacao = models.ForeignKey(Tramitacao, on_delete=models.CASCADE, related_name='assinaturas')
+    usuario = models.ForeignKey(User, on_delete=models.CASCADE, related_name='assinaturas_tramitacoes')
+    assinado = models.BooleanField(default=False)
+    data_assinatura = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['data_assinatura', 'id']
+        constraints = [
+            models.UniqueConstraint(fields=['tramitacao', 'usuario'], name='assinatura_unica_por_usuario'),
+        ]
+
+
 class HistoricoTramitacao(models.Model):
     tramitacao = models.ForeignKey(Tramitacao, on_delete=models.CASCADE, related_name='historicos')
     remetente = models.ForeignKey(User, on_delete=models.CASCADE)

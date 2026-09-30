@@ -17,7 +17,14 @@ def api_historico_tramitacao(request, pk):
         tramitacao = obter_tramitacao_autorizada(request.user, pk)
     except Tramitacao.DoesNotExist:
         raise Http404('Tramitação não encontrada.')
-    return JsonResponse({'historico': montar_historico_tramitacao(tramitacao)})
+    assinaturas = [
+        {
+            'usuario': assinatura.usuario.get_full_name() or assinatura.usuario.username,
+            'data': assinatura.data_assinatura.strftime('%d/%m/%Y %H:%M'),
+        }
+        for assinatura in tramitacao.assinaturas.select_related('usuario').filter(assinado=True)
+    ]
+    return JsonResponse({'historico': montar_historico_tramitacao(tramitacao), 'assinaturas': assinaturas})
 
 
 @login_required

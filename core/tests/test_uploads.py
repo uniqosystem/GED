@@ -54,8 +54,8 @@ class GedUploadTests(TestCase):
 
 		self.assertEqual(response_pdf['Content-Type'], 'application/pdf')
 		self.assertEqual(response_png['Content-Type'], 'image/png')
-		self.assertEqual(response_pdf['X-Frame-Options'], 'DENY')
-		self.assertEqual(response_png['X-Frame-Options'], 'DENY')
+		self.assertEqual(response_pdf['X-Frame-Options'], 'SAMEORIGIN')
+		self.assertEqual(response_png['X-Frame-Options'], 'SAMEORIGIN')
 		response_pdf.close()
 		response_png.close()
 

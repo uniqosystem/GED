@@ -14,6 +14,7 @@ urlpatterns = [
     path('health/', auth_views.health_check, name='health_check'),
     path('alterar-senha/', auth_views.change_password, name='change_password'),
     path('inicio/', auth_views.pagina_inicial_direcionamento, name='inicio_sistema'),
+    path('perfil/', auth_views.perfil_usuario, name='perfil_usuario'),
     path('busca/', navigation_views.busca_crf, name='busca_crf'),
     path('visualizar/', file_views.visualizar_arquivo, name='visualizar_arquivo'), 
     path('baixar/', file_views.baixar_arquivo, name='baixar_arquivo'), 

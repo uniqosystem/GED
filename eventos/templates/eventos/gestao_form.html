@@ -1,0 +1,75 @@
+{% extends 'core/base.html' %}
+{% block conteudo %}
+<style>
+    .evento-modal .modal-dialog { max-width: 1080px; }
+    .evento-modal .modal-content { border: 0; border-radius: 8px; }
+    .evento-modal .modal-content > form { display: contents; }
+    .evento-modal .modal-header { background: #2c3e50; color: #fff; }
+    .evento-modal .modal-body { background: #f8f9fa; }
+    .evento-modal .form-section { background: #fff; border: 1px solid #dee2e6; border-radius: 6px; padding: 1rem; }
+    .evento-modal .form-label { font-weight: 600; color: #34495e; }
+    .evento-modal .modal-footer { background: #fff; border-top: 1px solid #dee2e6; }
+    @media (max-width: 767.98px) {
+        .evento-modal .modal-dialog { width: 100%; max-width: none; height: 100%; margin: 0; }
+        .evento-modal .modal-content { min-height: 100%; border-radius: 0; }
+        .evento-modal .modal-footer { position: sticky; bottom: 0; z-index: 2; }
+    }
+</style>
+<div class="container-fluid mt-4" style="max-width: 1100px;">
+    <a href="{% url 'eventos:gestao_lista' %}" class="btn btn-link px-0 mb-3">&larr; Voltar para gestão</a>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1 class="h2">{{ titulo_pagina }}</h1>
+    </div>
+    <p class="text-muted">Preencha os dados do evento e defina os campos adicionais da inscrição.</p>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-4">
+            <form method="post" enctype="multipart/form-data" novalidate>
+                {% csrf_token %}
+                {{ form.non_field_errors }}
+
+                <div class="form-section mb-3">
+                    <h3 class="h6 border-bottom pb-2 mb-3">Informações do evento</h3>
+                    <div class="row g-3">
+                        {% for field in form %}
+                            <div class="col-md-{% if field.name == 'descricao' or field.name == 'regras' or field.name == 'palestrantes' %}12{% else %}6{% endif %}">
+                                <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                {{ field }}
+                                {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="form-section mb-4">
+                    <h3 class="h6 border-bottom pb-2 mb-3">Campos adicionais da inscrição</h3>
+                    {{ formset.management_form }}
+                    {{ formset.non_form_errors }}
+                    <div class="table-responsive">
+                        <table class="table align-middle mb-0">
+                            <thead><tr><th>Nome</th><th>Chave</th><th>Obrigatório</th><th>Ativo</th><th>Excluir</th></tr></thead>
+                            <tbody>
+                                {% for campo_form in formset %}
+                                    <tr>
+                                        {% for hidden in campo_form.hidden_fields %}{{ hidden }}{% endfor %}
+                                        <td>{{ campo_form.nome }}{{ campo_form.nome.errors }}</td>
+                                        <td>{{ campo_form.chave }}{{ campo_form.chave.errors }}</td>
+                                        <td>{{ campo_form.obrigatorio }}</td>
+                                        <td>{{ campo_form.ativo }}</td>
+                                        <td>{% if campo_form.instance.pk %}{{ campo_form.DELETE }}{% endif %}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-end gap-2">
+                    <a href="{% url 'eventos:gestao_lista' %}" class="btn btn-outline-secondary">Cancelar</a>
+                    <button type="submit" class="btn btn-primary">Salvar evento</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock conteudo %}

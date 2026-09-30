@@ -48,6 +48,8 @@ GED_BASE_DIR = os.getenv('GED_BASE_DIR', r'C:\TESTE\GED')
 SETORES_BASE_DIR = os.getenv('SETORES_BASE_DIR', r'C:\TESTE\SETORES')
 LIXEIRA_DIR = os.getenv('LIXEIRA_DIR', r'C:\TESTE\GED_LIXEIRA')
 TRAMITACAO_DIR = os.getenv('TRAMITACAO_DIR', r'C:\TESTE\TRAMITACAO')
+EVENTOS_DIR = os.getenv('EVENTOS_DIR', r'D:\EVENTOS')
+ECARTA_DIR = os.getenv('ECARTA_DIR', r'D:\ECARTA')
 PONTO_DIR = os.getenv('PONTO_DIR', r'D:\PONTO')
 os.makedirs(PONTO_DIR, exist_ok=True)
 GED_PF_GROUPS = env_list('GED_PF_GROUPS', 'GED_PESSOA_FISICA')
@@ -72,6 +74,19 @@ MEDIA_ROOT = TRAMITACAO_DIR
 DEBUG = env_bool('DEBUG', default=False)
 ALLOWED_HOSTS = env_list('ALLOWED_HOSTS', 'localhost,127.0.0.1')
 CSRF_TRUSTED_ORIGINS = env_list('CSRF_TRUSTED_ORIGINS')
+
+EMAIL_BACKEND = os.getenv(
+    'EMAIL_BACKEND',
+    'django.core.mail.backends.console.EmailBackend' if DEBUG else 'django.core.mail.backends.smtp.EmailBackend',
+)
+EMAIL_HOST = os.getenv('EMAIL_HOST', '')
+EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
+EMAIL_USE_TLS = env_bool('EMAIL_USE_TLS', default=True)
+EMAIL_USE_SSL = env_bool('EMAIL_USE_SSL', default=False)
+EMAIL_TIMEOUT = int(os.getenv('EMAIL_TIMEOUT', '15'))
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'no-reply@crfpb.org.br')
 
 SESSION_COOKIE_HTTPONLY = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
@@ -100,6 +115,7 @@ INSTALLED_APPS = [
     'tramitacao',
     'ecarta',
     'ponto',
+    'eventos',
 ]
 
 MIDDLEWARE = [
@@ -180,7 +196,7 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
 
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 

@@ -1,669 +1,618 @@
 GED_CRFPB - DOCUMENTACAO COMPLETA DO SISTEMA
 ============================================
-
-1. OBJETIVO
------------
-
-O GED_CRFPB e um sistema web para gestao eletronica de documentos do Conselho Regional de Farmacia da Paraiba. O sistema permite:
-
-- autenticar usuarios;
-- associar usuarios a setores;
-- navegar por documentos armazenados no filesystem;
-- pesquisar, visualizar, baixar, renomear, enviar e excluir arquivos;
-- restaurar arquivos pela lixeira;
-- registrar auditoria das operacoes;
-- tramitar documentos entre setores e usuarios;
-- responder, devolver, concluir e assinar tramitacoes;
-- importar planilhas e gerar lotes do e-Carta;
-- baixar arquivos de servico e resposta em ZIP;
-- executar backups dos dados fisicos e do banco SQLite.
-
-A aplicacao usa Django, templates Django, Bootstrap, JavaScript e Waitress. O banco principal e SQLite. Os documentos ficam em diretorios do Windows configurados por variaveis de ambiente.
-
-
-2. ESTRUTURA DO PROJETO
------------------------
-
-manage.py
-    Entrada dos comandos administrativos Django.
-
-setup/
-    Configuracao geral do projeto.
-
-setup/settings.py
-    Variaveis de ambiente, banco, apps, middleware, cookies, staticfiles, media e logging.
-
-setup/urls.py
-    Rotas raiz. Publica /admin/ e inclui as rotas de core, tramitacao e ecarta.
-
-setup/wsgi.py
-    Entrada WSGI usada pelo servidor Waitress.
-
-setup/asgi.py
-    Entrada ASGI para servidores compativeis.
-
-core/
-    App base compartilhado: autenticacao, usuarios, setores, GED, filesystem,
-    uploads, lixeira e auditoria.
-
-tramitacao/
-    App de envio de documentos entre setores, respostas, devolucoes,
-    assinaturas, historico e anexos.
-
-ecarta/
-    App de importacao de planilhas e geracao de arquivos de lote.
-
-static/
-    Arquivos estaticos fonte mantidos pelo projeto.
-
-staticfiles/
-    Saida gerada pelo collectstatic. Nao e fonte e nao deve ser editada manualmente.
-
-docs/
-    Arquitetura, modulos, operacoes e esta documentacao consolidada.
-
-backup_diario.bat
-    Copia diaria dos diretorios de producao para o destino configurado.
-
-backup_mensal.bat
-    Copia mensal versionada dos diretorios de producao.
-
-iniciar_ged.bat
-    Script usado pelo Agendador de Tarefas para iniciar o servidor.
-
-run_server.bat
-    Script para iniciar manualmente o mesmo servidor.
-
-run_server.py
-    Inicializa Waitress na porta 8000.
-
-
-3. CONFIGURACAO DE AMBIENTE
-----------------------------
-
-O arquivo .env fica na raiz do projeto e nao deve ser versionado. Ele e carregado por setup/settings.py.
-
-Variaveis principais:
-
-SECRET_KEY
-    Obrigatoria. A aplicacao nao inicia sem ela.
-
-DEBUG
-    False em producao. O valor padrao e False.
-
-ALLOWED_HOSTS
-    Lista separada por virgulas de hosts permitidos.
-
-CSRF_TRUSTED_ORIGINS
-    Lista separada por virgulas de origens confiaveis para CSRF.
-
-GED_BASE_DIR
-    Raiz dos documentos gerais do GED. No ambiente atual: D:\GED.
-
-SETORES_BASE_DIR
-    Raiz das pastas dos setores. No ambiente atual: D:\SETORES.
-
-LIXEIRA_DIR
-    Raiz fisica da lixeira. No ambiente atual: D:\GED_LIXEIRA.
-
-TRAMITACAO_DIR
-    Raiz dos arquivos anexos de tramitacao. No ambiente atual: D:\TRAMITACAO.
-
-GED_PF_GROUPS
-    Grupos que liberam acesso ao modulo de pessoa fisica.
-
-GED_PJ_GROUPS
-    Grupos que liberam acesso ao modulo de pessoa juridica.
-
-UPLOAD_MAX_SIZE
-    Tamanho maximo de upload. O padrao e 20 MiB.
-
-UPLOAD_ALLOWED_EXTENSIONS
-    Extensoes permitidas para upload.
-
-SECURE_SSL_REDIRECT
-    Quando True, redireciona HTTP para HTTPS.
-
-SESSION_COOKIE_SECURE e CSRF_COOKIE_SECURE
-    Devem ser True quando a aplicacao for servida por HTTPS. No ambiente HTTP local,
-    podem ser False. O settings.py usa o valor de SECURE_SSL_REDIRECT como padrao,
-    permitindo sobrescrita explicita por variavel de ambiente.
-
-MEDIA_ROOT
-    Usa o valor de TRAMITACAO_DIR para arquivos de media.
-
-IMPORTANTE
-    Os defaults C:\TESTE\... em settings.py sao apenas fallback de desenvolvimento.
-    Se o .env possuir as variaveis, os valores do .env prevalecem. No servidor atual,
-    os valores efetivos sao D:\GED, D:\SETORES, D:\GED_LIXEIRA e D:\TRAMITACAO.
-
-
-4. BANCO DE DADOS
------------------
-
-O banco configurado e:
-
-C:\GED_CRFPB\db.sqlite3
-
-Ele armazena usuarios Django, grupos, sessoes, setores, perfis, documentos,
-tramitacoes, historicos, anexos, registros de lixeira e logs de auditoria.
-
-O banco de testes e criado temporariamente pelo Django e nao deve ser confundido
-com o banco principal.
-
-Comandos basicos:
-
-    venv\Scripts\python.exe manage.py migrate
-    venv\Scripts\python.exe manage.py check
-    venv\Scripts\python.exe manage.py showmigrations
-
-Usuario administrador:
-
-- username: admin
-- o login usa o username, nao o e-mail;
-- a conta precisa estar ativa;
-- para o Django Admin, precisa ser staff;
-- para permissoes globais, precisa ser superuser.
-
-Redefinicao de senha:
-
-    venv\Scripts\python.exe manage.py changepassword admin
-
-Nunca registrar ou documentar a senha em arquivos do projeto.
-
-
-5. AUTENTICACAO E SESSAO
--------------------------
-
-As rotas de autenticacao ficam em core/auth_views.py e sao expostas por core/urls.py.
-
-GET /
-    Exibe a tela de login.
-
-POST /
-    Recebe username e password, chama django.contrib.auth.authenticate e inicia a sessao.
-
-GET/POST /alterar-senha/
-    Permite a troca obrigatoria de senha para usuarios cujo Perfil.password_changed
-    seja False.
-
-GET /logout/
-    Encerra a sessao.
-
-GET /health/
-    Verifica a conectividade do banco e retorna status HTTP 200 quando saudavel.
-
-O middleware core.middleware.EnforcePasswordChangeMiddleware redireciona usuarios
-autenticados que ainda nao trocaram a senha. As rotas de troca, logout e health check
-sao permitidas durante essa etapa.
-
-O login comum aceita username. O e-mail cadastrado em User.email nao substitui o
-username automaticamente.
-
-
-6. APP CORE / GED
------------------
-
-6.1 Modelos
-
-core/models/access.py
-    Setor: nome, caminho de rede e data de criacao.
-    Perfil: relacao um-para-um com User, setor e controle de troca de senha.
-
-core/models/documents.py
-    Modelos de documentos e prontuarios do GED.
-
-core/models/audit.py
-    LogAuditoria, que registra operacoes relevantes.
-
-core/models/trash.py
-    RegistroLixeira, que representa itens movidos para a lixeira.
-
-core/models/__init__.py
-    Preserva os imports publicos de core.models e carrega os sinais de perfil.
-
-6.2 Organizacao das operacoes
-
-core/auth_views.py
-    Login, logout, health check, troca de senha e direcionamento inicial.
-
-core/file_services.py
-    Raizes autorizadas, seguranca de caminhos, autorizacao fisica e validacoes.
-
-core/file_queries.py
-    Listagem e busca de diretorios e arquivos.
-
-core/file_delivery.py
-    Visualizacao, download, MIME e validacao de caminhos de retorno.
-
-core/navigation_services.py
-    Configuracao dos modulos GED e breadcrumbs.
-
-core/navigation_views.py
-    Navegacao e busca web.
-
-core/storage_services.py
-    Upload multiplo, persistencia e criacao segura de subpastas.
-
-core/storage_views.py
-    Endpoints HTTP de upload e criacao de pasta.
-
-core/trash_services.py
-    Exclusao, restauracao, exclusao multipla e esvaziamento da lixeira.
-
-core/trash_queries.py
-    Consulta e filtros dos itens da lixeira.
-
-core/trash_views.py
-    Fluxo HTTP da lixeira.
-
-core/audit_queries.py
-    Consultas e filtros de auditoria.
-
-core/audit_views.py
-    Tela e exportacao de auditoria.
-
-core/rename_service.py
-    Regras de renomeacao segura.
-
-core/views.py
-    Fachada de compatibilidade para operacoes ainda expostas por imports antigos.
-
-6.3 Seguranca do filesystem
-
-As operacoes devem:
-
-- normalizar caminhos antes de acessar o disco;
-- impedir traversal com ..;
-- impedir acesso fora das raizes autorizadas;
-- rejeitar links simbolicos que escapem das raizes;
-- validar nomes compativeis com Windows;
-- impedir sobrescrita indevida em uploads;
-- validar extensao, tamanho e assinatura do arquivo;
-- usar MIME coerente com o conteudo quando aplicavel.
-
-Os arquivos exibidos na interface nao devem ser considerados autorizados apenas
-por estarem dentro de uma URL. A autorizacao deve ser verificada no backend.
-
-6.4 Lixeira
-
-A exclusao fisica passa primeiro pela lixeira quando o fluxo da aplicacao determina
-isso. O registro no banco preserva informacoes necessarias para restauracao e auditoria.
-Esvaziar a lixeira remove arquivos fisicos permanentemente.
-
-
-7. APP TRAMITACAO
-------------------
-
-A tramitacao movimenta documentos entre setores e usuarios. O modelo principal e
-Tramitacao. O historico e os anexos preservam cada etapa do fluxo.
-
-7.1 Status
-
-PENDENTE
-    Criada e aguardando recebimento ou acao do destinatario.
-
-RECEBIDO
-    Destinatario recebeu a tramitacao.
-
-CONCLUIDO
-    Fluxo finalizado.
-
-DEVOLVIDO
-    Destinatario devolveu para o remetente.
-
-ARQUIVADO
-    Registro arquivado conforme as regras do sistema.
-
-7.2 Modulos de dominio
-
-tramitacao/permissions.py
-    Regras de acesso por usuario, setor e acao.
-
-tramitacao/queries.py
-    Caixa de entrada, usuarios por setor e consultas reutilizaveis.
-
-tramitacao/destinations.py
-    Validacao de setores e usuarios de destino.
-
-tramitacao/dispatch.py
-    Criacao, edicao, devolucao, reenvio e exclusao de tramitacoes devolvidas.
-
-tramitacao/workflow.py
-    Transicoes de status e operacoes de recebimento, conclusao e lote.
-
-tramitacao/responses.py
-    Respostas, despachos, destinatarios e persistencia de resposta.
-
-tramitacao/signatures.py
-    Assinatura eletronica e confirmacao de senha.
-
-tramitacao/history.py
-    Historico e anexos apresentados na interface e API.
-
-tramitacao/attachments.py
-    Resolucao, validacao e persistencia de anexos.
-
-tramitacao/services.py
-    Fachada de compatibilidade que reexporta servicos publicos.
-
-tramitacao/forms/
-    Validacao de formularios de envio e resposta.
-
-tramitacao/action_views.py
-    Acoes de receber, finalizar, devolver e arquivar.
-
-tramitacao/inbox_views.py
-    Caixa de entrada, abas e listagens.
-
-tramitacao/api_views.py
-    Endpoints de consulta e operacoes via API.
-
-tramitacao/signals.py
-    Sinais relacionados ao app.
-
-7.3 Fluxo normal
-
-1. Usuario autenticado cria uma tramitacao.
-2. O sistema valida setor e destinatario.
-3. O documento e associado ao setor e usuario de destino.
-4. O destinatario visualiza a caixa de entrada.
-5. O destinatario recebe a tramitacao.
-6. Se necessario, responde com despacho e anexos.
-7. Se exigir assinatura, confirma a senha antes de concluir.
-8. O sistema registra historico e auditoria.
-9. O fluxo termina como CONCLUIDO, ou retorna como DEVOLVIDO/PENDENTE.
-
-7.4 Modais da interface
-
-A caixa de entrada possui modais para:
-
-- visualizar detalhes;
-- receber uma tramitacao;
-- responder;
-- assinar e concluir;
-- editar e reenviar uma devolucao;
-- confirmar acoes bloqueadas, como conclusao sem assinatura.
-
-Os IDs dos modais, nomes de campos e contratos JavaScript fazem parte da interface
-de teste e devem ser preservados ao alterar templates.
-
-7.5 Comandos operacionais
-
-Os comandos em tramitacao/management/commands tratam vencimentos e arquivos orfaos.
-Devem ser executados com a virtualenv ativa e com as raizes de armazenamento acessiveis.
-
-
-8. APP E-CARTA
---------------
-
-O app e-Carta processa planilhas e produz lotes para servicos e respostas.
-
-8.1 Componentes
-
-ecarta/services.py
-    Leitura, normalizacao e validacao de CSV, XLS e XLSX; geracao dos conteudos.
-
-ecarta/forms.py
-    Validacao da entrada HTTP e dos arquivos enviados.
-
-ecarta/views.py
-    Fluxo HTTP, autenticacao, mensagens e dados de sessao.
-
-ecarta/download_views.py
-    Downloads ZIP de arquivos de servico e resposta.
-
-ecarta/models.py
-    Modelos persistentes do app.
-
-8.2 Fluxo
-
-1. Usuario autenticado acessa a tela de geracao.
-2. Envia uma planilha.
-3. O servico valida colunas obrigatorias e dados.
-4. O sistema normaliza os registros.
-5. Gera arquivos de lote de servico e resposta.
-6. Mantem referencias intermediarias na sessao.
-7. Disponibiliza downloads em ZIP.
-
-O app rejeita planilhas sem as colunas obrigatorias e nao deve gerar lote quando
-o upload estiver ausente ou invalido.
-
-
-9. ROTAS PRINCIPAIS
--------------------
-
-/admin/
-    Django Admin.
-
-/
-    Login.
-
-/health/
-    Health check.
-
-/inicio/
-    Tela inicial autenticada.
-
-/alterar-senha/
-    Troca obrigatoria de senha.
-
-/logout/
-    Logout.
-
-/busca/
-    Busca no GED.
-
-/navegar/<modulo>/
-    Navegacao por modulo.
-
-/visualizar/
-    Visualizacao de arquivo autorizado.
-
-/baixar/
-    Download de arquivo autorizado.
-
-/upload-geral/
-    Upload geral.
-
-/upload-multiplo-ajax/
-    Upload multiplo com resposta JSON.
-
-/criar-pasta/
-    Criacao de subpasta.
-
-/renomear/
-    Renomeacao de item.
-
-/apagar/
-    Exclusao para lixeira.
-
-/lixeira/
-    Consulta da lixeira.
-
-/auditoria/
-    Consulta de auditoria.
-
-/tramitacao/
-    Rotas da tramitacao, incluindo caixa, envio, recebimento, respostas,
-    devolucoes, assinaturas, anexos e operacoes em lote.
-
-/ecarta/
-    Rotas de geracao e download do e-Carta.
-
-
-10. INICIALIZACAO DO SERVIDOR
+Atualizada em 2026-09-30
+
+1. OBJETIVO E ESTADO ATUAL
+--------------------------
+
+O GED_CRFPB e uma aplicacao web Django para o Conselho Regional de Farmacia da
+Paraiba. A instalacao atual possui os modulos GED/Core, Tramitacao, Ponto, Eventos
+e e-Carta. A interface usa templates Django, Bootstrap e JavaScript; o servidor
+local usa Waitress, e o banco configurado e SQLite.
+
+O sistema atualmente oferece:
+
+- login, sessoes, troca obrigatoria de senha e pagina de perfil;
+- usuarios, grupos e associacao de perfil a setor;
+- navegacao, busca, upload, visualizacao, download, renomeacao e lixeira do GED;
+- auditoria de operacoes administrativas e funcionais;
+- tramitacao de documentos entre setores, com historico, respostas e anexos;
+- registro de ponto, historico individual, ocorrencias e documentos de RH;
+- criacao de eventos, inscricoes publicas, presencas e certificados;
+- processamento de planilhas e-Carta, persistencia de lotes e downloads ZIP;
+- rotinas Windows para backup diario e mensal.
+
+IMPORTANTE: a instalacao ainda e de organizacao unica. Nao existe isolamento por
+empresa/tenant, painel comercial de assinaturas ou habilitacao de modulos por
+cliente. O sistema nao deve ser publicado para varias empresas antes de implementar
+e testar esses controles.
+
+
+2. COMPONENTES DO REPOSITORIO
 -----------------------------
 
-Modo recomendado no computador de producao:
+manage.py
+    Comandos administrativos do Django: migracoes, verificacoes e testes.
 
-- A tarefa agendada GED-CRF-PB executa C:\GED_CRFPB\iniciar_ged.bat no boot.
-- iniciar_ged.bat valida a virtualenv e chama run_server.py.
-- run_server.py inicia Waitress em 0.0.0.0:8000.
+setup/settings.py
+    Aplicacoes, banco, middleware, cookies, e-mail, arquivos, estaticos e logging.
 
-Execucao manual:
+setup/urls.py
+    Rotas raiz, Django Admin, inclusao dos apps e entrega protegida de arquivos.
 
-    C:\GED_CRFPB\iniciar_ged.bat
+setup/wsgi.py / setup/asgi.py
+    Entradas WSGI e ASGI do projeto.
 
-ou:
+core/
+    Autenticacao, perfil, setores, GED, filesystem, uploads, lixeira e auditoria.
 
-    C:\GED_CRFPB\run_server.bat
+tramitacao/
+    Fluxo documental entre setores, regras de acesso, historico, respostas,
+    assinaturas e anexos.
 
-Nao execute os dois scripts simultaneamente. A virtualenv pode aparecer como um
-processo pai e um processo filho; isso representa uma unica instancia logica do
-servidor. A porta 8000 e o melhor indicador de instancia efetiva.
+ponto/
+    Batidas, historico de ponto, funcionarios, ocorrencias, anexos e contracheques.
 
-Acesse normalmente por um host presente em ALLOWED_HOSTS, por exemplo:
+eventos/
+    Eventos publicos, inscricoes, campos adicionais, presencas e certificados.
 
-    http://ti-pc02:8000
-    http://localhost:8000
-    http://127.0.0.1:8000
+ecarta/
+    Importacao de planilhas, geracao de arquivos, registro de lotes e downloads.
 
+static/
+    Arquivos estaticos-fonte do projeto.
 
-11. BACKUPS
------------
+staticfiles/
+    Saida gerada por collectstatic; nao editar manualmente.
 
-backup_diario.bat usa:
+backup_diario.bat / backup_mensal.bat
+    Copias dos diretorios e do banco, de acordo com os caminhos configurados nos
+    scripts e no computador operacional.
 
-- origem D:\SETORES para destino J:\SETORES;
-- origem D:\GED para destino J:\GED;
-- origem D:\GED_LIXEIRA para destino J:\GED_LIXEIRA;
-- origem D:\TRAMITACAO para destino J:\TRAMITACAO;
-- banco C:\GED_CRFPB\db.sqlite3 para J:\GED\db.sqlite3;
-- logs em J:\Logs.
+iniciar_ged.bat / run_server.bat / run_server.py
+    Inicializacao automatizada, manual e implementacao Waitress do servidor.
 
-backup_mensal.bat usa as mesmas origens e grava em J:\Backup_Mensal\AAAA-MM.
-
-Riscos operacionais:
-
-- /MIR pode espelhar exclusoes da origem no destino;
-- robocopy pode retornar codigos diferentes de zero sem significar falha total;
-- o formato de %date% depende da localizacao do Windows;
-- unidades de rede precisam estar disponiveis para a conta da tarefa agendada;
-- a restauracao deve ser testada, nao apenas a copia.
-
-Procedimento minimo de validacao:
-
-1. Confirmar existencia e permissoes de D: e J:.
-2. Executar uma copia controlada.
-3. Conferir os logs em J:\Logs.
-4. Confirmar a data e o tamanho dos arquivos copiados.
-5. Testar restauracao de documentos, anexos e banco em ambiente separado.
+Consulte tambem docs/architecture.md, docs/modules.md e
+docs/operations/backups.md. Os arquivos de documentacao complementam este manual.
 
 
-12. TESTES E VALIDACAO
-----------------------
+3. CONFIGURACAO E PERSISTENCIA
+------------------------------
 
-Ambiente:
+O arquivo .env fica na raiz do projeto, e carregado por setup/settings.py e nao
+deve ser versionado. .env.example mostra os nomes das variaveis sem segredos.
+Configuracoes relevantes:
 
-    venv\Scripts\python.exe
+SECRET_KEY
+    Obrigatoria. Deve ser secreta, longa e diferente entre ambientes.
 
-Verificacao Django:
+DEBUG
+    False fora do desenvolvimento.
 
-    venv\Scripts\python.exe manage.py check
+ALLOWED_HOSTS
+    Hosts HTTP permitidos, separados por virgula.
 
-Testes por app:
+CSRF_TRUSTED_ORIGINS
+    Origens confiaveis para verificacao CSRF, com esquema e host quando usadas.
 
-    venv\Scripts\python.exe manage.py test core
-    venv\Scripts\python.exe manage.py test ecarta
-    venv\Scripts\python.exe manage.py test tramitacao
+GED_BASE_DIR
+    Raiz fisica dos documentos do GED. Ambiente operacional atual: D:\GED.
 
-Testes backend de tramitacao sem navegador:
+SETORES_BASE_DIR
+    Raiz das pastas departamentais. Ambiente operacional atual: D:\SETORES.
 
-    venv\Scripts\python.exe manage.py test tramitacao.test_http tramitacao.test_operations tramitacao.test_security tramitacao.test_workflow
+LIXEIRA_DIR
+    Raiz fisica da lixeira. Ambiente operacional atual: D:\GED_LIXEIRA.
 
-Testes E2E com Playwright:
+TRAMITACAO_DIR
+    MEDIA_ROOT do Django para arquivos de media legados, anexos de tramitacao e
+    diversos documentos do Ponto. Ambiente operacional atual: D:\TRAMITACAO.
 
-    venv\Scripts\python.exe -m playwright install chromium
-    venv\Scripts\python.exe manage.py test tramitacao.tests
+EVENTOS_DIR
+    Armazenamento independente de imagens e certificados, configurado atualmente
+    como D:\EVENTOS.
 
-Os testes E2E usam LiveServerTestCase e Chromium headless. Eles aplicam configuracoes
-locais de cookies e HTTPS para que o servidor de teste HTTP funcione sem alterar a
-configuracao de producao.
+ECARTA_DIR
+    Armazenamento independente dos arquivos dos lotes e-Carta, atualmente
+    D:\ECARTA.
 
-A cobertura existente inclui:
+PONTO_DIR
+    Pasta de operacao do Ponto, incluindo logs e planilhas geradas. Atual: D:\PONTO.
 
-- autenticacao, troca de senha e logout;
-- autorizacao por setor e grupos;
-- health check e protecoes HTTP;
-- auditoria e exportacao;
-- seguranca de caminhos e filesystem;
-- uploads, MIME, extensao, tamanho e assinatura de arquivo;
-- lixeira, restauracao e exclusao;
-- geracao e download de e-Carta;
-- caixa de entrada e regras de tramitacao;
-- respostas, devolucoes, assinatura e conclusao;
-- modais e fluxos de navegador.
+GED_PF_GROUPS / GED_PJ_GROUPS
+    Grupos Django com acesso aos modulos de pessoa fisica e pessoa juridica.
 
-Ao modificar codigo, rodar pelo menos:
+PONTO_RH_GROUPS
+    Grupos autorizados para as operacoes de RH do Ponto. Superusuarios e usuarios
+    staff tambem satisfazem a regra atual.
 
-1. manage.py check;
-2. testes do app afetado;
-3. testes de seguranca relacionados;
-4. teste E2E se templates, JavaScript, modais ou sessao forem alterados.
+UPLOAD_MAX_SIZE / UPLOAD_ALLOWED_EXTENSIONS
+    Limite de tamanho e extensoes aceitas na validacao compartilhada de uploads.
+    O limite padrao e 20 MiB.
+
+EMAIL_HOST, EMAIL_PORT, EMAIL_HOST_USER, EMAIL_HOST_PASSWORD, EMAIL_USE_TLS,
+EMAIL_USE_SSL, EMAIL_TIMEOUT e DEFAULT_FROM_EMAIL
+    Configuracao SMTP usada para o envio de certificados. Em DEBUG, o backend
+    padrao imprime e-mails no console; fora de DEBUG, o padrao e SMTP.
+
+SECURE_SSL_REDIRECT, SESSION_COOKIE_SECURE, CSRF_COOKIE_SECURE e
+SECURE_HSTS_SECONDS
+    Controles de HTTPS. Em configuracao sem DEBUG, o projeto ativa redirecionamento
+    HTTPS por padrao, cookies seguros e HSTS. Validar proxy reverso e HTTPS antes
+    de colocar na internet.
+
+STATIC_ROOT
+    Diretorio de saida de collectstatic; os arquivos-fonte ficam em static/.
+
+O banco principal e BASE_DIR/db.sqlite3 (no workspace atual, C:\GED_CRFPB\db.sqlite3).
+O banco armazena usuarios, grupos, sessoes, setores, perfis, documentos, fluxo de
+tramitacao, registros de Ponto/Eventos/e-Carta e auditoria. O banco de testes do
+Django e temporario e nao deve ser confundido com o arquivo principal.
+
+Mapa resumido do armazenamento de arquivos:
+
+    D:\GED             GED de pessoa fisica/juridica e documentos relacionados
+    D:\SETORES         pastas dos setores
+    D:\GED_LIXEIRA     itens removidos aguardando exclusao definitiva/restauracao
+    D:\TRAMITACAO      MEDIA_ROOT, anexos de tramitacao e varios arquivos do Ponto
+    D:\EVENTOS         imagens e certificados, organizados por evento
+    D:\ECARTA          servico/resposta, organizados por numero de lote
+    D:\PONTO           logs e relatorios operacionais do Ponto
+
+Os valores efetivos sao os valores do .env quando definidos; defaults em settings.py
+sao fallback. Confirmar caminhos e permissoes no proprio computador de execucao.
 
 
-13. SEGURANCA E OPERACAO
-------------------------
+4. USUARIOS, LOGIN E PERFIL
+---------------------------
 
-- Manter DEBUG=False em producao.
-- Usar SECRET_KEY forte e fora do repositorio.
-- Restringir ALLOWED_HOSTS.
-- Usar HTTPS em producao e ativar cookies seguros.
-- Nao versionar .env, banco, virtualenv, caches ou credenciais.
-- Restringir permissoes das pastas D:\GED, D:\SETORES, D:\GED_LIXEIRA e D:\TRAMITACAO.
-- Nao conceder acesso de escrita amplo ao processo do servidor.
-- Monitorar logs do servidor e dos backups.
-- Testar restauracao periodicamente.
-- Nao apagar migrations antigas.
-- Nao editar staticfiles como se fossem fonte.
-- Preservar aliases e fachadas publicas durante reorganizacoes.
-- Validar qualquer mudanca de caminhos contra o .env e os scripts de backup.
+O projeto usa o modelo de usuario Django. O login e por username e senha; e-mail
+nao substitui automaticamente o username. Usuario inativo nao deve ser tratado
+como uma conta valida. Acesso ao Django Admin exige is_staff; superusuario tem
+permissoes administrativas globais.
+
+No primeiro acesso, o middleware EnforcePasswordChangeMiddleware encaminha usuarios
+com Perfil.password_changed=False para a troca obrigatoria de senha. Depois de
+trocar a senha, Perfil guarda a data da alteracao.
+
+GET /perfil/ apresenta o username, setor e data da ultima troca de senha. O usuario
+pode editar primeiro nome, sobrenome e e-mail; username e setor sao apenas exibidos
+ou administrados por outros fluxos. O link de alteracao de senha fica nessa pagina.
+
+Rotas:
+
+    GET/POST /                 login
+    GET/POST /alterar-senha/    troca obrigatoria de senha
+    GET/POST /perfil/           dados pessoais editaveis do usuario
+    GET /logout/                encerra a sessao
+    GET /health/                verifica conectividade do banco
+
+O health check retorna HTTP 200 com status ok se consegue conectar ao banco; caso
+contrario retorna 503. Ele nao e um teste completo da aplicacao, storage ou SMTP.
 
 
-14. MANUTENCAO
---------------
+5. CORE / GED, FILESYSTEM E AUDITORIA
+-------------------------------------
+
+5.1 Principais modelos
+
+core/models/access.py
+    Setor contem nome e caminho de rede. Perfil liga um usuario a um setor e guarda
+    o estado/data da troca obrigatoria de senha.
+
+core/models/documents.py
+    Documento e Prontuario representam dados do GED no banco; os arquivos fisicos
+    continuam nas raizes configuradas.
+
+core/models/audit.py
+    LogAuditoria guarda usuario (quando conhecido), acao, data/hora, descricao e,
+    opcionalmente, caminho do item. Eventos publicos e acoes automatizadas podem
+    registrar usuario nulo.
+
+core/models/trash.py
+    RegistroLixeira liga o nome guardado na lixeira ao caminho original e ao usuario
+    responsavel pela exclusao.
+
+5.2 Navegacao e permissoes
+
+O GED possui navegacao por Pessoa Fisica, Pessoa Juridica e Setores, busca, listagem,
+breadcrumbs, paginacao, upload, criacao de subpastas, renomeacao e downloads.
+As permissoes de Pessoa Fisica e Juridica dependem dos grupos configurados. O acesso
+a pastas de setor depende dos grupos/setor do usuario; administrador GED/superusuario
+tem as excecoes previstas pelo codigo.
+
+Servicos importantes:
+
+    core/file_services.py       caminhos autorizados, ACL e nomes seguros
+    core/file_queries.py        listagem em filesystem e busca
+    core/navigation_services.py modulos e breadcrumbs
+    core/storage_services.py    upload e criacao de subpastas
+    core/rename_service.py      renomeacao
+    core/trash_services.py      exclusao, restauracao e esvaziamento
+    core/audit_queries.py       filtros de auditoria
+    core/audit_views.py         consulta e exportacao
+
+5.3 Seguranca de caminhos e uploads
+
+Antes de operar em um arquivo, o backend resolve e valida o caminho contra as raizes
+autorizadas. Nomes incompatíveis com Windows e extensoes executaveis perigosas sao
+rejeitados pelo fluxo de upload. A validacao compartilhada tambem verifica limite,
+extensao e conteudo/assinatura conforme o tipo. Uploads nao sobrescrevem arquivo
+existente com o mesmo nome; caminhos e URL de retorno vindos do cliente nao sao
+confiaveis sem validacao.
+
+5.4 Entrega HTTP de arquivos
+
+setup/urls.py expoe /media/<path> por setup/media_views.py. Essa rota consulta os
+registros correspondentes e aplica regra por tipo de arquivo; nao publica a pasta
+inteira do disco como um diretorio estatico.
+
+- Imagens de eventos associados a eventos nao rascunho sao publicas para exibicao.
+- Certificados de eventos exigem usuario autorizado a gerenciar eventos.
+- Anexos de tramitacao/historico exigem acesso a tramitacao relacionada.
+- Contracheques e atestados exigem o titular ou acesso de RH conforme a regra atual.
+- Conteudo privado recebe resposta sem cache publico e com nosniff.
+
+Os endpoints do GED /visualizar/ e /baixar/ exigem login e autorizacao do caminho.
+Nao criar alias no servidor web ou storage publico que contorne essas regras.
+
+5.5 Lixeira e auditoria
+
+Apagar move o item para LIXEIRA_DIR e cria registro no banco. A restauracao tenta
+recolocar o arquivo no caminho original. Esvaziar remove o conteudo fisico de forma
+permanente. Operacoes relevantes criam LogAuditoria; a tela de auditoria e exportacao
+sao administrativas e a exportacao exige superusuario.
+
+
+6. TRAMITACAO
+-------------
+
+Tramitacao move documentos entre setores e/ou usuarios. Tramitacao, HistoricoTramitacao,
+AnexoTramitacao, AnexoHistorico e AssinaturaTramitacao preservam fluxo, historico,
+anexos e assinaturas.
+
+Estados usados:
+
+    PENDENTE    enviada e aguardando recebimento/acao
+    RECEBIDO    destino registrou o recebimento
+    CONCLUIDO   fluxo concluido
+    DEVOLVIDO   encaminhada de volta ao setor de origem
+    ARQUIVADO   fluxo arquivado pelas operacoes disponiveis
+
+Fluxo funcional:
+
+1. Usuario autenticado prepara e envia uma tramitacao.
+2. Servicos validam setor de destino, destinatario e permissao.
+3. Destinatario consulta a caixa e recebe o documento.
+4. Pode responder com despacho e anexos, devolver ou concluir.
+5. Se for exigida assinatura, a acao de assinatura confirma a senha.
+6. Cada movimentacao mantem historico e logs de auditoria.
+
+Permissoes consideram setor de origem/destino, usuario de destino e acao. Usuarios
+nao devem obter acesso apenas alterando o identificador numerico na URL. A interface
+tem abas para recebidos, enviados, arquivados e concluidos, paginacao, operacoes em
+lote e modais de detalhes/acao. IDs, campos, URLs e contratos de JavaScript/HTMX sao
+interfaces funcionais cobertas por testes.
+
+Arquivos principais:
+
+    tramitacao/permissions.py     autorizacao por usuario, setor e acao
+    tramitacao/dispatch.py        criacao, edicao, reenvio e devolucao
+    tramitacao/workflow.py        transicoes, recebimento, conclusao e lote
+    tramitacao/responses.py       respostas, despachos e destinatarios
+    tramitacao/signatures.py      assinatura e senha
+    tramitacao/history.py         historico apresentado
+    tramitacao/attachments.py     validacao e persistencia dos anexos
+    tramitacao/queries.py         consultas reutilizaveis
+    tramitacao/services.py        fachada de compatibilidade
+
+Comandos de tramitacao em management/commands cuidam de tarefas operacionais como
+vencimentos e limpeza de anexos orfaos. Verificar configuracao e testar comandos
+antes de agendar sua execucao.
+
+
+7. PONTO
+--------
+
+O modulo Ponto registra batidas por usuario (entrada, saida para almoco, retorno do
+almoco e saida), data/hora e, quando informado, latitude/longitude. O modelo aplica
+validacao de distancia usando as coordenadas definidas em ponto/utils.py.
+
+O usuario autenticado consulta o proprio historico e perfil funcional. O perfil do
+Ponto inclui CPF, horario de entrada/saida e status funcional. Operacoes de RH usam
+grupos PONTO_RH_GROUPS, staff ou superusuario conforme ponto/permissions.py.
+
+RH pode consultar/editar funcionarios, relatorios, ocorrencias e contracheques. As
+ocorrencias podem anexar documentos (por exemplo, atestados); contracheques sao
+associados a funcionarios. Os arquivos usam a configuracao padrao MEDIA_ROOT (hoje
+TRAMITACAO_DIR), enquanto relatorios gerados e o log ponto.log usam PONTO_DIR.
+As autorizacoes dos arquivos privados passam pela entrega protegida descrita na
+secao 5.4.
+
+Rotas sob /ponto/ incluem:
+
+    /registrar/                   registrar batida
+    /perfil/                      perfil funcional e contracheques do proprio usuario
+    /historico/                   historico de batidas
+    /relatorio/ e /exportar/      relatorios
+    /rh/, /rh/dashboard/          paineis do RH
+    /rh/funcionarios/             consulta de funcionarios
+    /ocorrencias/                 gestao de ocorrencias e anexos
+    /upload-contracheque/         envio de contracheques pelo RH
+
+A rota /ponto/ redireciona para o registro de ponto. Operacoes de RH devem ser
+testadas com usuario permitido e usuario nao permitido.
+
+
+8. EVENTOS
+----------
+
+O modulo oferece listagem/detalhe publico de eventos e inscricao online, alem de
+gestao restrita ao setor Cursos e Eventos (ou superusuario). Evento possui titulo,
+slug, data/horario, local, palestrantes, descricao, regras, carga horaria, capacidade,
+prazo de inscricao, status e imagem. CamposInscricao define perguntas adicionais.
+
+Estados do evento:
+
+    RASCUNHO    nao e exibido publicamente
+    PUBLICADO   inscricoes podem estar abertas conforme prazo e vagas
+    ENCERRADO   inscricoes encerradas
+    REALIZADO   habilita confirmacao de presenca e emissao de certificados
+    CANCELADO   evento cancelado
+
+Inscricao guarda nome, CPF, e-mail, telefone, respostas, registro do checkbox de
+consentimento, data e eventual cancelamento. O CPF e normalizado/validado e nao pode
+haver outra inscricao ativa com mesmo CPF para o mesmo evento. A criacao da inscricao
+e protegida por transacao e revalida vagas/prazo.
+
+Gestores podem criar/editar eventos, consultar inscricoes, confirmar presencas e
+emitir certificados. A confirmacao de presenca exige evento realizado; a geracao do
+certificado exige presenca confirmada. Certificados PDF contem dados do inscrito,
+sao enviados por e-mail e ficam registrados no modelo Certificado.
+
+Imagens e certificados sao gravados em EVENTOS_DIR, em diretorios por evento:
+
+    EVENTOS_DIR/eventos/<id>-<slug>/imagens/
+    EVENTOS_DIR/eventos/<id>-<slug>/certificados/
+
+As operacoes de criacao/edicao, inscricao, presenca e emissao/envio usam LogAuditoria.
+Inscricoes publicas e tarefas automaticas podem aparecer com usuario de auditoria
+nulo. Dados de inscricao e certificados contem informacao pessoal; limitar acesso e
+retencao segundo as regras de privacidade aplicaveis.
+
+Rotas sob /eventos/ incluem listagem, detalhe, inscricao, sucesso, gestao, edicao,
+consulta de inscritos, presencas e geracao manual de certificado.
+
+
+9. E-CARTA
+----------
+
+O usuario autenticado envia CSV, XLS ou XLSX para a tela /ecarta/gerar/. A planilha
+e validada pelo validador de uploads, normalizada e verificada quanto as colunas
+necessarias:
+
+    NOME, ENDERECO, NUM. ENDERECO, END. COMPLEMENTO, BAIRRO, CIDADE, UF e CEP
+
+O processamento gera conteudo de servico e resposta e consome o numero de lote da
+ConfiguracaoEcarta. LoteEcarta persiste numero, usuario, data/hora e os dois arquivos.
+Arquivos sao gravados em:
+
+    ECARTA_DIR/lotes/<numero-do-lote>/
+
+Os botoes existentes montam downloads ZIP a partir do resultado mantido na sessao,
+para compatibilidade com o fluxo atual. Gerar lote e baixar arquivo registram as
+acoes GERAR_ECARTA, BAIXAR_ECARTA_SERVICO e BAIXAR_ECARTA_RESPOSTA em LogAuditoria.
+O CSV/XLS/XLSX de entrada nao e atualmente arquivado pelo fluxo persistente.
+
+Rotas:
+
+    /ecarta/gerar/
+    /ecarta/baixar/servico/
+    /ecarta/baixar/resposta/
+
+
+10. AUDITORIA E PAINEL ADMINISTRATIVO
+-------------------------------------
+
+LogAuditoria e a trilha compartilhada das operacoes do sistema. Acoes incluem
+operacoes do GED, lixeira, tramitacao, eventos e e-Carta. Cada fluxo deve registrar
+o usuario quando conhecido, a acao e uma descricao sem incluir segredos ou conteudo
+desnecessario de documentos pessoais.
+
+A interface /auditoria/ permite consulta e filtros; /auditoria/exportar/ e restrita
+a superusuario. O Django Admin em /admin/ e uma interface administrativa separada
+que exige usuario staff. Ser staff nao implica automaticamente as permissoes de
+negocio do GED, eventos ou RH.
+
+
+11. ROTAS DE REFERENCIA
+-----------------------
+
+Raiz e Core:
+
+    /                          login
+    /inicio/                   pagina inicial autenticada
+    /perfil/                   perfil da conta
+    /alterar-senha/            alteracao obrigatoria de senha
+    /logout/                   logout
+    /health/                   disponibilidade do banco
+    /busca/                    busca do GED
+    /navegar/<modulo>/         navegacao de documentos
+    /visualizar/ e /baixar/    entrega autorizada de arquivos GED
+    /upload-geral/             upload geral
+    /upload-multiplo-ajax/     upload multiplo
+    /criar-pasta/              criacao de subpasta
+    /renomear/                 renomear documento/pasta
+    /apagar/                   mover para lixeira
+    /lixeira/                  consultar/restaurar/esvaziar conforme permissao
+    /auditoria/                consulta da auditoria
+    /media/<path>              entrega protegida de media por registro e permissao
+    /admin/                    Django Admin
+
+Tramitacao:
+
+    /tramitacao/caixa-de-entrada/
+    /tramitacao/nova/
+    /tramitacao/<id>/receber/
+    /tramitacao/<id>/finalizar/
+    /tramitacao/<id>/devolver/
+    /tramitacao/<id>/responder/
+    /tramitacao/<id>/editar/
+    /tramitacao/<id>/assinar/
+    /tramitacao/<id>/anexos/
+    /tramitacao/<id>/api-historico/
+
+Ponto, Eventos e e-Carta:
+
+    /ponto/...                  batidas, perfil funcional, historico e RH
+    /eventos/...                listagem publica, inscricao e gestao
+    /ecarta/...                 geracao e downloads ZIP
+
+As URLs definitivas e os nomes das rotas estao nos urls.py de cada app. Esta lista
+e um mapa funcional, nao substitui esses arquivos como fonte da verdade.
+
+
+12. ARQUIVOS, BACKUP E RESTAURACAO
+----------------------------------
+
+backup_diario.bat espelha com robocopy /MIR:
+
+    D:\SETORES      -> J:\SETORES
+    D:\GED          -> J:\GED
+    D:\GED_LIXEIRA  -> J:\GED_LIXEIRA
+    D:\TRAMITACAO   -> J:\TRAMITACAO
+    D:\EVENTOS      -> J:\EVENTOS
+    D:\ECARTA       -> J:\ECARTA
+    D:\PONTO        -> J:\PONTO
+
+O script tambem copia C:\GED_CRFPB\db.sqlite3 para J:\GED\db.sqlite3. Os logs
+ficam em J:\Logs.
+
+backup_mensal.bat copia as mesmas raizes para J:\Backup_Mensal\AAAA-MM\... e faz
+copia mensal do banco. A data do diretorio e calculada com %date%, cujo formato
+depende da localidade do Windows.
+
+Riscos e controles:
+
+- /MIR propaga exclusoes da origem para o destino; nao e backup imutavel/versionado.
+- Robocopy usa codigos de retorno variados; os scripts atuais nao classificam todos
+  os codigos nem geram alerta centralizado.
+- O banco e copiado por copy enquanto a aplicacao pode estar ativa; isso nao garante
+  consistencia do SQLite. Usar mecanismo de backup SQLite ou parar/quiescer a escrita.
+- Uma restauracao consistente combina banco e todos os diretorios de arquivos.
+- Fazer teste periodico de restauracao em local separado; verificar arquivos, acesso,
+  registros e logs, nao apenas se os comandos terminaram.
+- As unidades de rede devem estar acessiveis a conta que executa o Agendador de Tarefas.
+
+Na primeira implantacao do armazenamento independente de Eventos, arquivos antigos
+em TRAMITACAO_DIR/eventos, se existirem, devem ser copiados sem espelhamento
+destrutivo para EVENTOS_DIR/eventos preservando os nomes relativos gravados no banco.
+O ambiente verificado em 2026-09-30 nao possuia arquivos nessa origem. O fluxo antigo
+de e-Carta mantinha apenas conteudo de sessao, sem lotes antigos persistidos para
+migracao.
+
+Consultar docs/operations/backups.md antes de alterar caminhos ou executar restauracao.
+
+
+13. INICIAR E PARAR O SERVIDOR
+------------------------------
+
+run_server.py inicia Waitress em 0.0.0.0:8000. A tarefa agendada pode executar
+iniciar_ged.bat no boot; run_server.bat e a alternativa manual. Nao iniciar as duas
+entradas ao mesmo tempo. Verificar a porta 8000 para confirmar a instancia efetiva.
+
+No PowerShell, a inicializacao documentada e:
+
+    .\venv\Scripts\python.exe run_server.py
+
+ou executar iniciar_ged.bat/run_server.bat conforme a configuracao local. O acesso
+deve usar um host de ALLOWED_HOSTS, por exemplo http://localhost:8000 em ambiente
+local. A porta 8000/Waitress e uma configuracao local, nao uma arquitetura de
+hospedagem publica pronta.
+
+Parar uma instancia antes de aplicar atualizacoes e iniciar apenas uma vez depois
+da verificacao. Nao encerrar processos Python sem identificar que estao servindo
+esta aplicacao.
+
+
+14. SEGURANCA, PRIVACIDADE E LIMITES DE PUBLICACAO
+-------------------------------------------------
+
+Controles presentes incluem autenticacao Django, validadores de senha, sessao,
+CSRF, grupos/permissoes por modulo, validacao de caminhos/uploads, entrega de arquivos
+com autorizacao, auditoria, cookies HTTPOnly, nosniff e configuracoes HTTPS quando
+DEBUG=False. Esses controles reduzem riscos, mas nao substituem revisao de seguranca,
+monitoramento e configuracao correta de producao.
+
+Dados tratados incluem CPF e contatos de inscritos de eventos; CPF, geolocalizacao,
+ocorrencias/atestados e documentos trabalhistas no Ponto; documentos do GED e anexos
+de tramitacao. Definir finalidade, base legal, acesso, prazo de retencao, descarte,
+atendimento a titulares, contratos com fornecedores e resposta a incidentes antes de
+operar como servico comercial. O checkbox de inscricao nao define sozinho a base legal.
+
+Limites atuais relevantes para qualquer implantacao publica:
+
+- banco SQLite e filesystem local/rede sao da instalacao atual;
+- Waitress esta escutando na interface configurada pelo script, sem balanceador ou
+  estrategia de escalabilidade por si so;
+- usuarios/setores sao globais nesta base, sem Empresa/Tenant e sem isolamento entre
+  clientes;
+- nao ha painel de assinaturas/planos para ativar modulos por empresa;
+- backup local atual nao e imutavel, monitorado nem prova de restaurabilidade;
+- os scripts e caminhos Windows precisam ser substituidos/configurados para o destino
+  real de hospedagem.
+
+Para SaaS multiempresa, implementar organizacao/tenant e isolamento server-side em
+usuarios, setores, documentos, auditoria, ponto, eventos, lotes e arquivos; planos e
+ativacao de modulos no backend; PostgreSQL; storage privado; TLS/domains/subdomains;
+monitoramento; backups protegidos; e piloto com testes negativos de acesso cruzado.
+Nao usar esta instalacao local para cadastrar empresas sem essas etapas.
+
+
+15. TESTES, MIGRACOES E MANUTENCAO
+----------------------------------
+
+Usar o Python do ambiente virtual:
+
+    .\venv\Scripts\python.exe manage.py check
+    .\venv\Scripts\python.exe manage.py makemigrations --check --dry-run
+    .\venv\Scripts\python.exe manage.py showmigrations
+    .\venv\Scripts\python.exe manage.py migrate
+    .\venv\Scripts\python.exe manage.py test --verbosity 1
+
+Execucao de testes por modulo:
+
+    .\venv\Scripts\python.exe manage.py test core
+    .\venv\Scripts\python.exe manage.py test tramitacao
+    .\venv\Scripts\python.exe manage.py test ponto
+    .\venv\Scripts\python.exe manage.py test eventos
+    .\venv\Scripts\python.exe manage.py test ecarta
+
+Ao alterar views/templates/rotas, testar login, resposta HTTP e templates. Ao tocar
+arquivos, testar usuario autorizado, nao autorizado e anonimo, alem do fluxo publico
+de imagem de evento. Ao alterar regras de negocio, testar permissao e estado antes e
+depois da acao. Os testes E2E de tramitacao usam Playwright/Chromium quando instalados.
 
 Atualizar dependencias:
 
-    venv\Scripts\python.exe -m pip install -r requirements.txt
+    .\venv\Scripts\python.exe -m pip install -r requirements.txt
 
-Atualizar banco:
+Coletar estaticos para um ambiente que o exija:
 
-    venv\Scripts\python.exe manage.py migrate
+    .\venv\Scripts\python.exe manage.py collectstatic
 
-Verificar alteracoes de modelos:
+Antes de atualizar uma instalacao operacional:
 
-    venv\Scripts\python.exe manage.py makemigrations --check --dry-run
+1. Planejar janela e confirmar caminhos/configuracao efetivos.
+2. Fazer backup consistente do banco e todas as raizes de arquivos.
+3. Parar o servidor e confirmar que nao ha segundo processo gravando.
+4. Atualizar codigo/dependencias sem remover migrations.
+5. Executar migrate, check e testes relevantes.
+6. Reiniciar uma unica instancia e validar login, rotas, uploads/downloads e logs.
+7. Confirmar que os backups continuam apontando para as raizes corretas.
 
-Coletar estaticos quando necessario:
-
-    venv\Scripts\python.exe manage.py collectstatic
-
-Antes de atualizar em producao:
-
-1. Fazer backup do db.sqlite3.
-2. Fazer backup dos diretorios de documentos.
-3. Parar o servidor.
-4. Atualizar o codigo e dependencias.
-5. Executar migrate e check.
-6. Executar testes.
-7. Iniciar uma unica instancia.
-8. Validar login, GED, e-Carta e tramitacao.
-9. Conferir logs e acesso pela rede.
-
-
-15. RESUMO DE DEPENDENCIAS
---------------------------
-
-- Python compativel com o ambiente do projeto.
-- Django 6.0.6.
-- Waitress para o servidor WSGI.
-- python-dotenv para .env.
-- pandas e dependencias de planilhas para o e-Carta.
-- Playwright e Chromium apenas para os testes E2E.
-- SQLite para persistencia.
-- Windows e unidades locais/rede para armazenamento e backup.
+staticfiles/ e saida gerada: editar apenas os arquivos-fonte em static/.
+Preservar compatibilidade de rotas, migrations e aliases ao reorganizar modulos.
 
 
 16. DIAGNOSTICO RAPIDO
@@ -671,51 +620,74 @@ Antes de atualizar em producao:
 
 Servidor nao inicia:
 
-- confirmar venv\Scripts\python.exe;
-- confirmar .env e SECRET_KEY;
-- executar manage.py check;
-- confirmar porta 8000 livre;
-- conferir caminhos D: e permissoes.
+- confirmar que .env existe e contem SECRET_KEY;
+- usar .\venv\Scripts\python.exe e executar manage.py check;
+- verificar se a porta 8000 esta livre e identificar a instancia que a ocupa;
+- validar permissoes e existencia de GED_BASE_DIR, SETORES_BASE_DIR, LIXEIRA_DIR,
+  TRAMITACAO_DIR, EVENTOS_DIR, ECARTA_DIR e PONTO_DIR.
 
-Login rejeitado:
+Login rejeitado ou loop de senha:
 
-- usar username, nao necessariamente o e-mail;
-- confirmar is_active;
-- confirmar senha com changepassword;
-- limpar cookies antigos do navegador;
-- conferir SESSION_COOKIE_SECURE e CSRF_COOKIE_SECURE conforme HTTP/HTTPS;
-- confirmar se a requisicao chega ao servidor correto.
+- usar username e confirmar is_active;
+- verificar senha, estado de Perfil.password_changed e middleware;
+- confirmar cookies seguros conforme HTTP/HTTPS e limpar cookie antigo se necessario;
+- verificar que o navegador esta acessando a instancia/host esperado.
 
-Documentos nao aparecem:
+GED vazio ou acesso negado:
 
-- conferir GED_BASE_DIR e SETORES_BASE_DIR efetivos;
-- confirmar existencia dos diretorios;
-- confirmar permissoes;
-- conferir se o caminho esta dentro da raiz autorizada.
+- confirmar GED_BASE_DIR/SETORES_BASE_DIR e permissoes do processo;
+- validar grupos GED_PF_GROUPS/GED_PJ_GROUPS e setor do usuario;
+- assegurar que o caminho resolvido pertence a uma raiz autorizada.
 
-Upload falha:
+Upload/download falha:
 
-- conferir extensao permitida;
-- conferir tamanho;
-- conferir assinatura/conteudo real;
-- conferir permissao de escrita em TRAMITACAO_DIR;
-- conferir se o nome possui caracteres invalidos do Windows.
+- confirmar raiz configurada para o modulo (MEDIA_ROOT, EVENTOS_DIR ou ECARTA_DIR);
+- conferir extensao, tamanho, assinatura e escrita/leitura do processo;
+- confirmar registro do arquivo no banco e permissao sobre o objeto relacionado;
+- nao contornar a view protegida criando URL estatico publico.
+
+Imagem de evento ausente:
+
+- confirmar status diferente de RASCUNHO, campo imagem e arquivo no evento correto;
+- confirmar EVENTOS_DIR e subpasta eventos/<id>-<slug>/imagens/.
+
+Lote e-Carta ou download ausente:
+
+- confirmar colunas obrigatorias, ultimo numero de lote, registro LoteEcarta e arquivos
+  em ECARTA_DIR/lotes/<numero>/;
+- downloads ZIP imediatos tambem dependem da sessao original.
 
 Tramitacao nao aparece:
 
-- conferir setor do usuario;
-- conferir usuario destinatario;
-- conferir status;
-- conferir permissao da acao;
-- conferir registros de auditoria e historico.
+- confirmar setor de origem/destino, destinatario, estado e regra da acao;
+- examinar historico, anexos e LogAuditoria sem divulgar dados sensiveis.
 
-Testes E2E falham ao iniciar:
+Backup falha ou restaura dados incompletos:
 
-    venv\Scripts\python.exe -m playwright install chromium
+- confirmar unidades e permissoes da conta agendada;
+- ler os logs em J:\Logs e interpretar codigos do robocopy;
+- verificar se /MIR apagou arquivos no destino;
+- restaurar banco e todas as raizes relacionadas como um conjunto consistente.
 
-Se o navegador inicia mas o fluxo demora, executar o teste isoladamente e conferir
-se o problema ocorre no login, no LiveServer, na sessao, no seletor do modal ou na
-persistencia do status.
+Testes E2E nao iniciam:
+
+    .\venv\Scripts\python.exe -m playwright install chromium
+
+Executar primeiro o teste isolado e verificar LiveServer, cookies, sessao, seletores,
+modais e persistencia antes de atribuir a falha ao navegador.
+
+
+17. DEPENDENCIAS PRINCIPAIS
+---------------------------
+
+- Python compativel com o ambiente e requisitos travados do projeto.
+- Django 6.0.6.
+- Waitress para o servidor WSGI local.
+- python-dotenv para configuracao por .env.
+- pandas e dependencias XLS/XLSX para e-Carta.
+- ReportLab para certificados PDF.
+- Playwright/Chromium para os testes E2E que os utilizam.
+- SQLite e filesystem Windows na instalacao atual.
 
 
 FIM DA DOCUMENTACAO

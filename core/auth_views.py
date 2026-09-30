@@ -13,6 +13,8 @@ from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_GET
 
+from .forms import PerfilUsuarioForm
+
 logger = logging.getLogger(__name__)
 
 
@@ -101,6 +103,21 @@ def change_password(request):
 @login_required
 def pagina_inicial_direcionamento(request):
     return render(request, 'core/inicio.html')
+
+
+@login_required
+def perfil_usuario(request):
+    form = PerfilUsuarioForm(request.POST or None, instance=request.user)
+    if request.method == 'POST' and form.is_valid():
+        form.save()
+        messages.success(request, 'Dados do perfil atualizados.')
+        return redirect('perfil_usuario')
+
+    perfil = getattr(request.user, 'perfil', None)
+    return render(request, 'core/perfil.html', {
+        'form': form,
+        'perfil': perfil,
+    })
 
 
 @login_required

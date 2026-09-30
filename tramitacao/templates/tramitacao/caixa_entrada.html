@@ -874,6 +874,26 @@
                     fetch(`/tramitacao/${tramitacaoId}/api-historico/`)
                         .then(response => response.json())
                         .then(data => {
+                            const assinaturas = data.assinaturas || [];
+                            const containerAssinaturas = document.createElement('div');
+                            containerAssinaturas.className = 'mt-3 pt-2 border-top';
+                            const tituloAssinaturas = criarElemento('h6', 'text-muted mb-2');
+                            tituloAssinaturas.append(criarElemento('i', 'bi bi-shield-lock'), document.createTextNode(' Assinatura Eletrônica'));
+                            containerAssinaturas.appendChild(tituloAssinaturas);
+                            if (assinaturas.length > 0) {
+                                assinaturas.forEach(assinatura => {
+                                    const linha = criarElemento('div', 'small text-success mb-1');
+                                    linha.append(
+                                        criarElemento('strong', '', 'Assinado digitalmente'),
+                                        document.createTextNode(' Por: '),
+                                        criarElemento('strong', '', assinatura.usuario),
+                                        document.createTextNode(` em ${assinatura.data}`)
+                                    );
+                                    containerAssinaturas.appendChild(linha);
+                                });
+                            } else {
+                                containerAssinaturas.appendChild(criarElemento('span', 'text-muted small', 'Aguardando assinatura eletrônica.'));
+                            }
                             if (data.historico && data.historico.length > 0) {
                                 const historicoFragment = document.createDocumentFragment();
 
@@ -933,6 +953,7 @@
                             } else {
                                 containerHistorico.replaceChildren(criarElemento('span', 'text-muted small', 'Nenhum histórico encontrado.'));
                             }
+                            containerHistorico.appendChild(containerAssinaturas);
                         })
                         .catch(error => {
                             console.error('Erro ao carregar histórico:', error);

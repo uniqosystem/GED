@@ -4,18 +4,29 @@ from django.contrib.auth import authenticate
 from django.utils import timezone
 
 from core.models import LogAuditoria
+from .models import AssinaturaTramitacao
 
 
 def assinar_tramitacao(tramitacao, usuario):
     if tramitacao.status != 'RECEBIDO':
         raise ValueError('A tramitação precisa ser recebida antes da assinatura.')
-    if tramitacao.assinado:
-        raise ValueError('Este documento já foi assinado anteriormente.')
     if not tramitacao.exige_assinatura:
         raise ValueError('Este documento não exige assinatura eletrônica.')
-    tramitacao.assinado = True
-    tramitacao.assinado_por = usuario
-    tramitacao.data_assinatura = timezone.now()
+    if tramitacao.assinado and tramitacao.assinado_por_id == usuario.id and not tramitacao.assinaturas.exists():
+        raise ValueError('Este documento já foi assinado anteriormente.')
+    assinatura, criada = AssinaturaTramitacao.objects.get_or_create(
+        tramitacao=tramitacao,
+        usuario=usuario,
+    )
+    if not criada and assinatura.assinado:
+        raise ValueError('Este documento já foi assinado anteriormente.')
+    assinatura.assinado = True
+    assinatura.data_assinatura = timezone.now()
+    assinatura.save(update_fields=['assinado', 'data_assinatura'])
+    if not tramitacao.assinado:
+        tramitacao.assinado_por = usuario
+        tramitacao.data_assinatura = assinatura.data_assinatura
+    tramitacao.assinado = not tramitacao.assinaturas.filter(assinado=False).exists()
     tramitacao.save()
     LogAuditoria.objects.create(
         usuario=usuario,

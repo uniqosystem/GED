@@ -5,7 +5,7 @@ from django.contrib.auth.models import User
 from core.models import LogAuditoria, Setor
 
 from .attachments import adicionar_anexos_tramitacao
-from .models import HistoricoTramitacao, Tramitacao
+from .models import AssinaturaTramitacao, HistoricoTramitacao, Tramitacao
 
 
 def criar_tramitacoes(dados, usuario, setor_origem, setores_destino, usuarios_destino, arquivos):
@@ -25,7 +25,10 @@ def criar_tramitacoes(dados, usuario, setor_origem, setores_destino, usuarios_de
     destinatarios = usuarios_destino if usuarios_destino else [None]
 
     for setor_destino in setores_destino:
-        for usuario_destino in destinatarios:
+        # Varios usuarios do mesmo setor compartilham uma tramitacao e assinam
+        # individualmente; isso evita que a primeira assinatura encerre o fluxo.
+        destinatarios_da_tramitacao = [None] if len(usuarios_destino) > 1 else destinatarios
+        for usuario_destino in destinatarios_da_tramitacao:
             tramitacao = Tramitacao(
                 tipo_documento=dados['tipo_documento'],
                 titulo=dados['titulo'],
@@ -53,6 +56,12 @@ def criar_tramitacoes(dados, usuario, setor_origem, setores_destino, usuarios_de
                 aguardar_resposta=tramitacao.aguardar_resposta,
             )
             adicionar_anexos_tramitacao(tramitacao, historico, arquivos)
+            for usuario_assinante in usuarios_destino:
+                if getattr(usuario_assinante, 'perfil', None) and usuario_assinante.perfil.setor_id == setor_destino.id:
+                    AssinaturaTramitacao.objects.create(
+                        tramitacao=tramitacao,
+                        usuario=usuario_assinante,
+                    )
             criadas.append(tramitacao)
 
     return criadas

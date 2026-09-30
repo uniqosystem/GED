@@ -8,6 +8,7 @@ from django.conf import settings
 from django.http import FileResponse, Http404, HttpResponse
 from django.shortcuts import redirect
 from django.views.decorators.http import require_POST
+from django.views.decorators.clickjacking import xframe_options_sameorigin
 
 from .file_delivery import abrir_arquivo_autorizado, tipo_conteudo_arquivo, url_retorno_segura
 from .rename_service import renomear_item as renomear_item_service
@@ -16,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 @login_required
+@xframe_options_sameorigin
 def visualizar_arquivo(request):
     caminho_usuario = request.GET.get('caminho', '')
     try:

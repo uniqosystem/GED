@@ -51,11 +51,16 @@ O app `tramitacao` gerencia o envio de documentos entre setores. Seu fluxo possu
 
 As funcoes de consulta continuam reexportadas por `services.py` temporariamente para preservar imports existentes.
 
+## Eventos
+
+Imagens e certificados sao armazenados em subpastas por evento dentro de `EVENTOS_DIR`. Criacao, edicao, inscricao, presenca e emissao/envio de certificados usam a auditoria compartilhada.
+
 ## Ecarta
 
-O app `ecarta` importa arquivos de endereco, gera arquivos de lote e disponibiliza downloads. O resultado intermediario usa a sessao para manter compatibilidade com o fluxo atual.
+O app `ecarta` importa arquivos de endereco, gera e arquiva os arquivos de cada lote em `ECARTA_DIR` e disponibiliza downloads. A sessao continua guardando o resultado imediato para manter compatibilidade com o fluxo atual.
 
-- `services.py`: leitura e normalizacao de CSV/XLS/XLSX e geracao dos conteudos de servico e resposta; valida a planilha antes de consumir o lote.
+- `services.py`: leitura e normalizacao de CSV/XLS/XLSX, geracao e persistencia dos arquivos do lote; valida a planilha antes de consumir o lote e registra a acao na auditoria compartilhada.
+- `models.py`: `LoteEcarta` guarda quem gerou o lote e os caminhos dos arquivos de servico/resposta em `ECARTA_DIR/lotes/<numero>/`.
 - `views.py`: processamento HTTP, autenticacao, mensagens e sessao; preserva aliases dos downloads.
 - `download_views.py`: downloads ZIP do arquivo de servico e da resposta.
 - `tests.py`: testes de geração de lotes, downloads e contratos HTTP.

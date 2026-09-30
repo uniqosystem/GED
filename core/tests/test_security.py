@@ -1,11 +1,15 @@
 from unittest.mock import patch
+from tempfile import TemporaryDirectory
 
 from django.contrib.auth.models import User
-from django.test import RequestFactory, TestCase
+from django.core.files.base import ContentFile
+from django.test import RequestFactory, TestCase, override_settings
 from django.db import connection
+from django.urls import reverse
 
 from core.models import LogAuditoria, Setor
 from core.views import por_pagina_seguro, url_retorno_segura
+from ponto.models import Contracheque
 
 
 class GedSecurityTests(TestCase):
@@ -14,6 +18,29 @@ class GedSecurityTests(TestCase):
 		self.usuario = User.objects.create_user('usuario', password='senha')
 		self.usuario.perfil.setor = self.setor
 		self.usuario.perfil.save()
+
+	def test_midia_privada_exige_autorizacao_do_proprietario(self):
+		with TemporaryDirectory() as media_dir:
+			with override_settings(MEDIA_ROOT=media_dir):
+				contracheque = Contracheque(usuario=self.usuario, mes=9, ano=2026)
+				contracheque.arquivo.save('contracheque.pdf', ContentFile(b'dados privados'))
+				url = reverse('private_media', kwargs={'path': contracheque.arquivo.name})
+
+				self.assertEqual(self.client.get(url).status_code, 404)
+
+				self.usuario.perfil.password_changed = True
+				self.usuario.perfil.save(update_fields=['password_changed'])
+				self.client.force_login(self.usuario)
+				resposta = self.client.get(url)
+				self.assertEqual(resposta.status_code, 200)
+				self.assertEqual(b''.join(resposta.streaming_content), b'dados privados')
+				self.assertEqual(resposta['Cache-Control'], 'private, no-store')
+
+				outro_usuario = User.objects.create_user('outro_usuario', password='senha')
+				outro_usuario.perfil.password_changed = True
+				outro_usuario.perfil.save(update_fields=['password_changed'])
+				self.client.force_login(outro_usuario)
+				self.assertEqual(self.client.get(url).status_code, 404)
 
 	def test_health_check_retorna_status_ok(self):
 		response = self.client.get('/health/')

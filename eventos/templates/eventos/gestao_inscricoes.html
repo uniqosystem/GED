@@ -1,0 +1,39 @@
+{% extends 'core/base.html' %}
+{% load eventos_tags %}
+{% block conteudo %}
+<div class="container-fluid mt-4">
+    <a href="{% url 'eventos:gestao_lista' %}" class="btn btn-link px-0 mb-3">&larr; Voltar para gestão</a>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div><h1 class="h2">Inscritos</h1><p class="text-muted mb-0">{{ evento.titulo }}</p></div>
+        <span class="badge text-bg-primary">{{ evento.total_inscricoes_ativas }} / {{ evento.limite_inscricoes }}</span>
+    </div>
+    <form method="get" class="row g-2 mb-3" role="search">
+        <div class="col-md-8">
+            <label class="visually-hidden" for="filtro-inscritos">Buscar inscrito</label>
+            <input id="filtro-inscritos" name="q" value="{{ termo }}" class="form-control" placeholder="Buscar por nome, CPF ou e-mail">
+        </div>
+        <div class="col-auto"><button type="submit" class="btn btn-outline-primary"><i class="bi bi-search me-1"></i> Filtrar</button></div>
+        {% if termo %}<div class="col-auto"><a href="{% url 'eventos:gestao_inscricoes' evento.pk %}" class="btn btn-outline-secondary">Limpar</a></div>{% endif %}
+    </form>
+    <div class="table-responsive bg-white shadow-sm rounded">
+        <table class="table table-hover align-middle mb-0">
+            <thead><tr><th>Nome</th><th>CPF</th><th>E-mail</th><th>Telefone</th><th>Inscrição</th><th>Certificado</th></tr></thead>
+            <tbody>
+                {% for inscricao in inscricoes %}
+                    <tr>
+                        <td>{{ inscricao.nome }}</td><td>{{ inscricao.cpf|mascarar_cpf }}</td><td>{{ inscricao.email }}</td><td>{{ inscricao.telefone }}</td><td>{{ inscricao.inscrito_em|date:'d/m/Y H:i' }}</td>
+                        <td>
+                            {% if inscricao.presenca.confirmada %}
+                                <form method="post" action="{% url 'eventos:gestao_gerar_certificado' inscricao.pk %}">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm btn-outline-success">Gerar PDF</button>
+                                </form>
+                            {% else %}<span class="text-muted small">Presença pendente</span>{% endif %}
+                        </td>
+                    </tr>
+                {% empty %}<tr><td colspan="6" class="text-center text-muted py-5">Nenhuma inscrição ativa.</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock conteudo %}

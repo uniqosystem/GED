@@ -21,7 +21,11 @@ def usuario_tem_acesso_tramitacao(usuario, tramitacao, acao='visualizar'):
     setor_destino = tramitacao.setor_destino_id == setor_usuario.id
     usuario_destino = (
         setor_destino and
-        (tramitacao.usuario_destino_id is None or tramitacao.usuario_destino_id == usuario.id)
+        (
+            tramitacao.usuario_destino_id is None or
+            tramitacao.usuario_destino_id == usuario.id or
+            tramitacao.assinaturas.filter(usuario_id=usuario.id).exists()
+        )
     )
     setor_origem = (
         tramitacao.setor_origem_id == setor_usuario.id or

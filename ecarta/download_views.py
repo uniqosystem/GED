@@ -6,7 +6,19 @@ from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
 from django.shortcuts import redirect
 
+from core.models import LogAuditoria
+
 from .services import CONTRATO_FIXO
+
+
+def _registrar_download(usuario, lote, tipo):
+    acao = f'BAIXAR_ECARTA_{tipo.upper()}'
+    LogAuditoria.objects.create(
+        usuario=usuario,
+        acao=acao,
+        descricao=f'Arquivo {tipo} do lote e-Carta {lote} baixado',
+        caminho_item=f'lotes/{lote}',
+    )
 
 
 @login_required
@@ -24,6 +36,7 @@ def baixar_servico(request):
 
     response = HttpResponse(zip_buffer.read(), content_type='application/zip')
     response['Content-Disposition'] = f'attachment; filename="e-Carta_{CONTRATO_FIXO}_{lote}_servico.zip"'
+    _registrar_download(request.user, lote, 'servico')
     return response
 
 
@@ -43,4 +56,5 @@ def baixar_resposta(request):
 
     response = HttpResponse(zip_buffer.read(), content_type='application/zip')
     response['Content-Disposition'] = f'attachment; filename="e-Carta_{CONTRATO_FIXO}_{lote}_resposta.zip"'
+    _registrar_download(request.user, lote, 'resposta')
     return response

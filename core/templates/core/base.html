@@ -134,6 +134,14 @@
                                 </a>
                             </li>
 
+                            {% if pode_gerenciar_eventos %}
+                                <li class="nav-item">
+                                    <a class="nav-link" href="{% url 'eventos:gestao_lista' %}">
+                                        <i class="bi bi-calendar-event me-2"></i> Eventos
+                                    </a>
+                                </li>
+                            {% endif %}
+
                             {% if pode_gerenciar_ponto %}
                                 <li class="nav-item">
                                     <a class="nav-link" href="{% url 'pagina_relatorio' %}">
@@ -200,6 +208,12 @@
                                     </a>
                                 </li>
                             {% endif %}
+
+                            <li class="nav-item mt-4">
+                                <a class="nav-link" href="{% url 'perfil_usuario' %}">
+                                    <i class="bi bi-person-circle me-2"></i> Perfil
+                                </a>
+                            </li>
 
                             <li class="nav-item mt-5">
                                 <a class="nav-link text-danger" href="{% url 'logout' %}">

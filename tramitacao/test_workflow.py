@@ -158,6 +158,34 @@ class TramitationWorkflowTests(TestCase):
         with self.assertRaisesMessage(ValueError, 'já foi assinado anteriormente'):
             assinar_tramitacao_com_senha(tramitacao, self.destinatario, 'senha')
 
+    def test_multiplos_destinatarios_assinam_a_mesma_tramitacao(self):
+        segundo_destinatario = User.objects.create_user('workflow_destinatario_2', password='senha')
+        segundo_destinatario.perfil.setor = self.setor_destino
+        segundo_destinatario.perfil.save()
+        criadas = criar_tramitacoes(
+            {
+                'tipo_documento': 'OFICIO',
+                'titulo': 'Assinatura coletiva',
+                'despacho': 'Despacho',
+                'exige_assinatura': True,
+            },
+            self.remetente,
+            self.setor_origem,
+            [self.setor_destino],
+            [self.destinatario, segundo_destinatario],
+            [],
+        )
+        self.assertEqual(len(criadas), 1)
+        tramitacao = criadas[0]
+        receber_tramitacao(tramitacao, self.destinatario)
+        assinar_tramitacao(tramitacao, self.destinatario)
+        tramitacao.refresh_from_db()
+        self.assertFalse(tramitacao.assinado)
+        assinar_tramitacao(tramitacao, segundo_destinatario)
+        tramitacao.refresh_from_db()
+        self.assertTrue(tramitacao.assinado)
+        self.assertEqual(tramitacao.assinaturas.count(), 2)
+
     def test_assinatura_com_aguardar_resposta_permite_responder(self):
         tramitacao = self.criar_tramitacao(aguardar=True, exige_assinatura=True)
         receber_tramitacao(tramitacao, self.destinatario)

@@ -2,6 +2,8 @@ from django.conf import settings
 
 from ponto.permissions import is_ponto_rh
 
+from eventos.permissions import pode_gerenciar_eventos
+
 
 def usuario_setor(request):
     if request.user.is_authenticated:
@@ -23,9 +25,11 @@ def usuario_setor(request):
             'setor_usuario': setor,
             'grupos_setores_menu': grupos_setores_menu,
             'pode_gerenciar_ponto': is_ponto_rh(request.user),
+            'pode_gerenciar_eventos': pode_gerenciar_eventos(request.user),
         }
     return {
         'setor_usuario': None,
         'grupos_setores_menu': [],
         'pode_gerenciar_ponto': False,
+        'pode_gerenciar_eventos': False,
     }

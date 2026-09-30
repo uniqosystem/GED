@@ -4,10 +4,13 @@ from datetime import datetime
 from io import StringIO
 
 import pandas as pd
+from django.core.files.base import ContentFile
+from django.db import transaction
 
 from core.file_validation import validar_upload
+from core.models import LogAuditoria
 
-from .models import ConfiguracaoEcarta
+from .models import ConfiguracaoEcarta, LoteEcarta
 
 CARTAO_POSTAGEM = "0077383354"
 CONTRATO_FIXO = "55944"
@@ -87,3 +90,37 @@ def gerar_lote(arquivo_enviado):
         'conteudo_resposta': f'1|{numero_lote}|A\n',
         'nome_resposta': nome_resposta_txt,
     }
+
+
+@transaction.atomic
+def persistir_lote(resultado, usuario):
+    lote = LoteEcarta.objects.create(
+        numero_lote=resultado['lote'],
+        criado_por=usuario,
+    )
+    try:
+        lote.arquivo_servico.save(
+            f'e-Carta_{CONTRATO_FIXO}_{lote.numero_lote}_servico.txt',
+            ContentFile(resultado['conteudo_servico'].encode('utf-8')),
+            save=False,
+        )
+        lote.arquivo_resposta.save(
+            resultado['nome_resposta'],
+            ContentFile(resultado['conteudo_resposta'].encode('utf-8')),
+            save=False,
+        )
+        lote.save(update_fields=['arquivo_servico', 'arquivo_resposta'])
+        LogAuditoria.objects.create(
+            usuario=usuario,
+            acao='GERAR_ECARTA',
+            descricao=f'Lote e-Carta {lote.numero_lote} gerado',
+            caminho_item=f'lotes/{lote.numero_lote}',
+        )
+    except Exception:
+        if lote.arquivo_servico:
+            lote.arquivo_servico.delete(save=False)
+        if lote.arquivo_resposta:
+            lote.arquivo_resposta.delete(save=False)
+        lote.delete()
+        raise
+    return lote

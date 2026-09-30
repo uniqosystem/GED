@@ -43,7 +43,7 @@ def receber_tramitacao(tramitacao, usuario):
     transicionar_status(tramitacao, 'RECEBER', usuario)
     tramitacao.status = 'RECEBIDO'
     tramitacao.data_recebimento = timezone.now()
-    if not tramitacao.usuario_destino:
+    if not tramitacao.usuario_destino and not tramitacao.assinaturas.exists():
         tramitacao.usuario_destino = usuario
     tramitacao.save()
     LogAuditoria.objects.create(
@@ -57,7 +57,10 @@ def receber_tramitacao(tramitacao, usuario):
 def finalizar_tramitacao(tramitacao, usuario):
     if tramitacao.aguardar_resposta:
         raise ValueError('Esta tramitação aguarda uma resposta antes da conclusão.')
-    if tramitacao.exige_assinatura and not tramitacao.assinado:
+    if tramitacao.exige_assinatura and (
+        not tramitacao.assinado or
+        (tramitacao.assinaturas.exists() and tramitacao.assinaturas.filter(assinado=False).exists())
+    ):
         raise ValueError('A assinatura é obrigatória antes da conclusão.')
     transicionar_status(tramitacao, 'FINALIZAR', usuario)
     tramitacao.status = 'CONCLUIDO'
